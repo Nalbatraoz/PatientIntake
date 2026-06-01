@@ -175,7 +175,3 @@ Quick Flask smoke test:
 ```powershell
 python -c "from app import app; c=app.test_client(); assert c.get('/').status_code == 200; print('ok')"
 ```
-
-## Medical Disclaimer
-
-This project is an intake documentation tool. It is not a diagnostic system, treatment system, prescribing system, or replacement for clinician review.
