@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError, URLError
 from werkzeug.utils import secure_filename
+from rag_store import build_clinical_context, index_rag_files, rag_status, search_rag
 
 app = Flask(__name__)
 CORS(app)
@@ -133,6 +134,13 @@ def password_required_response():
         401,
         {"WWW-Authenticate": 'Basic realm="Submitted Forms"'}
     )
+
+def clamp_int(value, default, minimum, maximum):
+    try:
+        number = int(value)
+    except (TypeError, ValueError):
+        return default
+    return max(minimum, min(maximum, number))
 
 def allowed_extension(filename, allowed_extensions):
     ext = filename.rsplit(".", 1)[-1].lower() if "." in filename else ""
@@ -796,6 +804,65 @@ def submit_form():
     conn.close()
 
     return jsonify({"message": "Form submitted successfully"})
+
+@app.route("/rag/status")
+def rag_status_route():
+    if not submissions_authorized():
+        return password_required_response()
+
+    return jsonify(rag_status())
+
+@app.route("/rag/index", methods=["POST"])
+def rag_index_route():
+    if not submissions_authorized():
+        return password_required_response()
+
+    options = request.get_json(silent=True) or {}
+    try:
+        result = index_rag_files(
+            force=bool(options.get("force")),
+            limit=options.get("limit"),
+        )
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(result)
+
+@app.route("/rag/search", methods=["POST"])
+def rag_search_route():
+    if not submissions_authorized():
+        return password_required_response()
+
+    data = request.get_json(silent=True) or {}
+    query = str(data.get("query") or "").strip()
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+
+    top_k = clamp_int(data.get("top_k"), 6, 1, 12)
+    try:
+        result = search_rag(query, top_k=top_k)
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(result)
+
+@app.route("/rag/context", methods=["POST"])
+def rag_context_route():
+    if not submissions_authorized():
+        return password_required_response()
+
+    data = request.get_json(silent=True) or {}
+    query = str(data.get("query") or "").strip()
+    if not query:
+        return jsonify({"error": "query is required"}), 400
+
+    top_k = clamp_int(data.get("top_k"), 6, 1, 12)
+    try:
+        result = build_clinical_context(query, top_k=top_k)
+    except RuntimeError as exc:
+        return jsonify({"error": str(exc)}), 400
+
+    return jsonify(result)
 
 if __name__ == "__main__":
     init_db()

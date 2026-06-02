@@ -1,5 +1,7 @@
 APIkey
 uploads/
+RAG Files/
+rag_vectors.db
 
 .venv/
 venv/
