@@ -2,6 +2,9 @@ from flask import Flask, request, jsonify, render_template, send_from_directory,
 from flask_cors import CORS
 import json
 import os
+import queue
+import threading
+import time
 
 from api.utils import (
     ALLOWED_IMAGE_EXTENSIONS,
@@ -19,7 +22,9 @@ from api.utils import (
     extract_text_with_openai,
     extract_text_with_tesseract,
     format_answer,
+    generate_next_patient_code,
     get_db_connection,
+    get_patient_by_code,
     init_db,
     lookup_drugbank,
     lookup_openfda_label,
@@ -33,6 +38,20 @@ from api.utils import (
 from core.rag_store import index_rag_files, rag_status, search_rag
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "frontend"))
+_notification_lock = threading.Lock()
+_notification_listeners = []
+
+def _broadcast_notification(payload):
+    data = json.dumps(payload, ensure_ascii=False)
+    with _notification_lock:
+        dead = []
+        for q in _notification_listeners:
+            try:
+                q.put_nowait(data)
+            except queue.Full:
+                dead.append(q)
+        for q in dead:
+            _notification_listeners.remove(q)
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 
@@ -51,6 +70,14 @@ def js():
     """Serve the frontend JavaScript file."""
     return send_from_directory(FRONTEND_DIR, "script.js")
 
+@app.route("/notifications.js")
+def notifications_js():
+    return send_from_directory(FRONTEND_DIR, "notifications.js")
+
+@app.route("/notifications.css")  
+def notifications_css():
+    return send_from_directory(FRONTEND_DIR, "notifications.css")
+
 @app.route("/submissions.css")
 def submissions_css():
     """Serve the submissions page stylesheet."""
@@ -60,6 +87,63 @@ def submissions_css():
 def submissions_js():
     """Serve the submissions page JavaScript file."""
     return send_from_directory(FRONTEND_DIR, "submissions.js")
+
+@app.route("/pedt")
+def pedt_page():
+    return send_from_directory(FRONTEND_DIR, "pedt.html")
+
+@app.route("/pedt.css")
+def pedt_css():
+    return send_from_directory(FRONTEND_DIR, "pedt.css")
+
+@app.route("/pedt.js")
+def pedt_js():
+    return send_from_directory(FRONTEND_DIR, "pedt.js")
+
+@app.route("/ehs")
+def ehs_page():
+    """Serve the Erection Hardness Scale page."""
+    return send_from_directory(FRONTEND_DIR, "ehs.html")
+
+@app.route("/ehs.css")
+def ehs_css():
+    """Serve the Erection Hardness Scale stylesheet."""
+    return send_from_directory(FRONTEND_DIR, "ehs.css")
+
+@app.route("/ehs.js")
+def ehs_js():
+    """Serve the Erection Hardness Scale JavaScript logic."""
+    return send_from_directory(FRONTEND_DIR, "ehs.js")
+
+@app.route("/low-libido")
+def low_libido_page():
+    """Serve the Low Libido Questionnaire page."""
+    return send_from_directory(FRONTEND_DIR, "low-libido.html")
+
+@app.route("/low-libido.css")
+def low_libido_css():
+    """Serve the Low Libido Questionnaire stylesheet."""
+    return send_from_directory(FRONTEND_DIR, "low-libido.css")
+
+@app.route("/low-libido.js")
+def low_libido_js():
+    """Serve the Low Libido Questionnaire JavaScript logic."""
+    return send_from_directory(FRONTEND_DIR, "low-libido.js")
+
+@app.route("/iief")
+def iief_page():
+    """Serve the IIEF Questionnaire page."""
+    return send_from_directory(FRONTEND_DIR, "iief.html")
+
+@app.route("/iief.css")
+def iief_css():
+    """Serve the IIEF Questionnaire stylesheet."""
+    return send_from_directory(FRONTEND_DIR, "iief.css")
+
+@app.route("/iief.js")
+def iief_js():
+    """Serve the IIEF Questionnaire JavaScript logic."""
+    return send_from_directory(FRONTEND_DIR, "iief.js")
 
 @app.route("/clinical-agent-test.css")
 def clinical_agent_test_css():
@@ -86,6 +170,36 @@ def uploaded_file(filename):
     if normalized.replace("\\", "/").startswith("reports/"):
         response.headers["Cache-Control"] = "no-store, max-age=0"
     return response
+
+@app.route("/patient-code/next")
+def generate_patient_code():
+    """Generate and return the next available patient code."""
+    code_no = generate_next_patient_code()
+    return jsonify({
+        "codeNo": code_no,
+        "message": f"Generated new patient code: {code_no}",
+    })
+
+@app.route("/patient-code/<code>")
+def lookup_patient_code(code):
+    """Look up an existing patient by their code."""
+    patient = get_patient_by_code(code)
+    
+    if not patient:
+        return jsonify({
+            "found": False,
+            "error": f"Patient code '{code}' not found.",
+        }), 404
+    
+    return jsonify({
+        "found": True,
+        "codeNo": patient["codeNo"],
+        "full_name": patient["full_name"],
+        "age": patient["age"],
+        "mobile": patient["mobile"],
+        "email": patient["email"],
+        "form_data": patient["form_data"],
+    })
 
 @app.route("/scan-drugs", methods=["POST"])
 def scan_drugs():
@@ -190,6 +304,10 @@ def submissions():
             form_data = {}
 
         pipeline = form_data.pop("clinical_pipeline", None)
+        iief_data = form_data.pop("iief_data", None)
+        pedt_data = form_data.pop("pedt_data", None)
+        ehs_data = form_data.pop("ehs_data", None)
+        low_libido_data = form_data.pop("low_libido_data", None)
         report_pdf = (pipeline or {}).get("report_pdf") or {}
         submission_id = row["id"]
         submissions.append({
@@ -200,12 +318,20 @@ def submissions():
             "email": row["email"] or "",
             "form_panel_id": f"form-panel-{submission_id}",
             "ai_panel_id": f"ai-panel-{submission_id}",
+            "iief_panel_id": f"iief-panel-{submission_id}",
+            "pedt_panel_id": f"pedt-panel-{submission_id}",
+            "ehs_panel_id": f"ehs-panel-{submission_id}",
+            "low_libido_panel_id": f"low-libido-panel-{submission_id}",
             "report_pdf_url": report_pdf.get("url"),
             "report_pdf_error": report_pdf.get("error"),
+            "iief_data": iief_data,
+            "pedt_data": pedt_data,
+            "ehs_data": ehs_data,
+            "low_libido_data": low_libido_data,
             "answers": [
                 {"key": str(key), "value": format_answer(value)}
                 for key, value in form_data.items()
-                if key != "clinical_pipeline"
+                if key not in ("clinical_pipeline", "iief_data", "pedt_data", "ehs_data", "low_libido_data")
             ],
             "ai_html": render_ai_report(pipeline),
         })
@@ -216,7 +342,7 @@ def submissions():
 def submit_form():
     """Save a submitted intake form, then run the configured clinical agent workflow."""
     data = request.json or {}
-
+    
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
@@ -235,32 +361,266 @@ def submit_form():
     conn.commit()
     conn.close()
 
-    try:
-        pipeline_result = run_full_clinical_pipeline(data, submission_id=submission_id)
-    except Exception as exc:
-        pipeline_result = {
-            "status": "error",
-            "submission_id": submission_id,
-            "error": str(exc),
-        }
+    # Spawn background thread to run clinical pipeline
+    def run_pipeline_bg(data_copy, sub_id):
+        try:
+            pipeline_result = run_full_clinical_pipeline(data_copy, submission_id=sub_id)
+        except Exception as exc:
+            pipeline_result = {
+                "status": "error",
+                "submission_id": sub_id,
+                "error": str(exc),
+            }
 
-    enriched_data = dict(data)
-    enriched_data["clinical_pipeline"] = pipeline_result
+        conn_bg = get_db_connection()
+        row = conn_bg.execute("SELECT form_data FROM intake_forms WHERE id = ?", (sub_id,)).fetchone()
+        if row:
+            try:
+                current_data = json.loads(row["form_data"] or "{}")
+            except json.JSONDecodeError:
+                current_data = dict(data_copy)
+        else:
+            current_data = dict(data_copy)
+
+        current_data["clinical_pipeline"] = pipeline_result
+        conn_bg.execute(
+            "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+            (json.dumps(current_data, ensure_ascii=False), sub_id),
+        )
+        conn_bg.commit()
+        conn_bg.close()
+
+    threading.Thread(target=run_pipeline_bg, args=(dict(data), submission_id), daemon=True).start()
+
+    _broadcast_notification({
+        "submission_id": submission_id,
+        "full_name": data.get("fullName") or "Unknown patient",
+        "visit_type": data.get("visitType") or "",
+        "age": str(data.get("age") or ""),
+        "timestamp": time.strftime("%H:%M"),
+    })
+
+    return jsonify({
+        "message": "Form submitted successfully. Clinical workflow is running in the background.",
+        "submission_id": submission_id,
+        "codeNo": f"INT-{submission_id}",
+        "deployment": deployment_info(),
+    })
+
+
+@app.route("/submit-iief", methods=["POST"])
+def submit_iief():
+    """Merge the IIEF scores and answers into the patient's submission record."""
+    data = request.json or {}
+    submission_id = data.get("submission_id")
+    iief_data = data.get("iief_data")
+
+    if not submission_id:
+        return jsonify({"error": "submission_id is required"}), 400
+    if not iief_data:
+        return jsonify({"error": "iief_data is required"}), 400
+
+    try:
+        # Extract integer ID from patient code if passed as a string (e.g. INT-123 -> 123)
+        if isinstance(submission_id, str) and submission_id.startswith("INT-"):
+            submission_id = int(submission_id.split("-")[1])
+        else:
+            submission_id = int(submission_id)
+    except (ValueError, IndexError):
+        return jsonify({"error": "Invalid submission_id format"}), 400
+
     conn = get_db_connection()
+    row = conn.execute("SELECT form_data FROM intake_forms WHERE id = ?", (submission_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": f"Submission #{submission_id} not found"}), 404
+
+    try:
+        form_data = json.loads(row["form_data"] or "{}")
+    except json.JSONDecodeError:
+        form_data = {}
+
+    # Merge IIEF data
+    form_data["iief_data"] = iief_data
+
     conn.execute(
         "UPDATE intake_forms SET form_data = ? WHERE id = ?",
-        (json.dumps(enriched_data, ensure_ascii=False), submission_id),
+        (json.dumps(form_data, ensure_ascii=False), submission_id),
     )
     conn.commit()
     conn.close()
 
-    return jsonify({
-        "message": "Form submitted successfully and clinical workflow completed.",
+    # Broadcast a notification to refresh submissions in the dashboard
+    _broadcast_notification({
         "submission_id": submission_id,
-        "report_pdf": pipeline_result.get("report_pdf"),
-        "pipeline": pipeline_result,
-        "deployment": deployment_info(),
+        "type": "iief_submitted",
+        "timestamp": time.strftime("%H:%M"),
     })
+
+    return jsonify({
+        "message": "IIEF Questionnaire answers submitted successfully.",
+        "submission_id": submission_id,
+    })
+
+
+@app.route("/submit-pedt", methods=["POST"])
+def submit_pedt():
+    """Merge the PEDT scores and answers into the patient's submission record."""
+    data = request.json or {}
+    submission_id = data.get("submission_id")
+    pedt_data = data.get("pedt_data")
+
+    if not submission_id:
+        return jsonify({"error": "submission_id is required"}), 400
+    if not pedt_data:
+        return jsonify({"error": "pedt_data is required"}), 400
+
+    try:
+        # Extract integer ID from patient code if passed as a string (e.g. INT-123 -> 123)
+        if isinstance(submission_id, str) and submission_id.startswith("INT-"):
+            submission_id = int(submission_id.split("-")[1])
+        else:
+            submission_id = int(submission_id)
+    except (ValueError, IndexError):
+        return jsonify({"error": "Invalid submission_id format"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT form_data FROM intake_forms WHERE id = ?", (submission_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": f"Submission #{submission_id} not found"}), 404
+
+    try:
+        form_data = json.loads(row["form_data"] or "{}")
+    except json.JSONDecodeError:
+        form_data = {}
+
+    # Merge PEDT data
+    form_data["pedt_data"] = pedt_data
+
+    conn.execute(
+        "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+        (json.dumps(form_data, ensure_ascii=False), submission_id),
+    )
+    conn.commit()
+    conn.close()
+
+    # Broadcast a notification to refresh submissions in the dashboard
+    _broadcast_notification({
+        "submission_id": submission_id,
+        "type": "pedt_submitted",
+        "timestamp": time.strftime("%H:%M"),
+    })
+
+    return jsonify({
+        "message": "PEDT Questionnaire answers submitted successfully.",
+        "submission_id": submission_id,
+    })
+
+
+@app.route("/submit-ehs", methods=["POST"])
+def submit_ehs():
+    """Merge the Erection Hardness Scale answers into the patient's submission record."""
+    data = request.json or {}
+    submission_id = data.get("submission_id")
+    ehs_data = data.get("ehs_data")
+
+    if not submission_id:
+        return jsonify({"error": "submission_id is required"}), 400
+    if not ehs_data:
+        return jsonify({"error": "ehs_data is required"}), 400
+
+    try:
+        if isinstance(submission_id, str) and submission_id.startswith("INT-"):
+            submission_id = int(submission_id.split("-")[1])
+        else:
+            submission_id = int(submission_id)
+    except (ValueError, IndexError):
+        return jsonify({"error": "Invalid submission_id format"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT form_data FROM intake_forms WHERE id = ?", (submission_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": f"Submission #{submission_id} not found"}), 404
+
+    try:
+        form_data = json.loads(row["form_data"] or "{}")
+    except json.JSONDecodeError:
+        form_data = {}
+
+    form_data["ehs_data"] = ehs_data
+
+    conn.execute(
+        "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+        (json.dumps(form_data, ensure_ascii=False), submission_id),
+    )
+    conn.commit()
+    conn.close()
+
+    _broadcast_notification({
+        "submission_id": submission_id,
+        "type": "ehs_submitted",
+        "timestamp": time.strftime("%H:%M"),
+    })
+
+    return jsonify({
+        "message": "Erection Hardness Scale answers submitted successfully.",
+        "submission_id": submission_id,
+    })
+
+
+@app.route("/submit-low-libido", methods=["POST"])
+def submit_low_libido():
+    """Merge the Low Libido questionnaire scores into the patient's submission record."""
+    data = request.json or {}
+    submission_id = data.get("submission_id")
+    low_libido_data = data.get("low_libido_data")
+
+    if not submission_id:
+        return jsonify({"error": "submission_id is required"}), 400
+    if not low_libido_data:
+        return jsonify({"error": "low_libido_data is required"}), 400
+
+    try:
+        if isinstance(submission_id, str) and submission_id.startswith("INT-"):
+            submission_id = int(submission_id.split("-")[1])
+        else:
+            submission_id = int(submission_id)
+    except (ValueError, IndexError):
+        return jsonify({"error": "Invalid submission_id format"}), 400
+
+    conn = get_db_connection()
+    row = conn.execute("SELECT form_data FROM intake_forms WHERE id = ?", (submission_id,)).fetchone()
+    if not row:
+        conn.close()
+        return jsonify({"error": f"Submission #{submission_id} not found"}), 404
+
+    try:
+        form_data = json.loads(row["form_data"] or "{}")
+    except json.JSONDecodeError:
+        form_data = {}
+
+    form_data["low_libido_data"] = low_libido_data
+
+    conn.execute(
+        "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+        (json.dumps(form_data, ensure_ascii=False), submission_id),
+    )
+    conn.commit()
+    conn.close()
+
+    _broadcast_notification({
+        "submission_id": submission_id,
+        "type": "low_libido_submitted",
+        "timestamp": time.strftime("%H:%M"),
+    })
+
+    return jsonify({
+        "message": "Low Libido questionnaire answers submitted successfully.",
+        "submission_id": submission_id,
+    })
+
 
 @app.route("/rag/status")
 def rag_status_route():
@@ -288,8 +648,6 @@ def rag_index_route():
         return jsonify({"error": str(exc)}), 400
 
     result["deployment"] = deployment_info()
-    if STORAGE_IS_EPHEMERAL:
-        result["warning"] = "RAG indexes created on Vercel are stored in /tmp and can disappear between function instances."
     return jsonify(result)
 
 @app.route("/rag/search", methods=["POST"])
@@ -332,7 +690,50 @@ def rag_context_route():
     result["deployment"] = deployment_info()
     return jsonify(result)
 
-
+@app.route("/events")
+def sse_events():
+    """
+    Server-Sent Events stream for real-time doctor notifications.
+    The doctor's page connects once; we push a 'new_submission' event
+    each time a patient completes and submits the intake form.
+    """
+    if not submissions_authorized():
+        return password_required_response()
+ 
+    def stream():
+        q: queue.Queue = queue.Queue(maxsize=20)
+        with _notification_lock:
+            _notification_listeners.append(q)
+        try:
+            # Initial ping confirms the connection is live.
+            yield "event: connected\ndata: {}\n\n"
+            while True:
+                try:
+                    data = q.get(timeout=25)
+                    yield f"event: new_submission\ndata: {data}\n\n"
+                except queue.Empty:
+                    # Keepalive comment — prevents proxies from killing idle connections.
+                    yield ": keepalive\n\n"
+        except GeneratorExit:
+            pass
+        finally:
+            with _notification_lock:
+                try:
+                    _notification_listeners.remove(q)
+                except ValueError:
+                    pass
+ 
+    return Response(
+        stream(),
+        mimetype="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "X-Accel-Buffering": "no",
+            "Connection": "keep-alive",
+        },
+    )
+ 
+ 
 
 @app.route("/clinical-agent-test")
 def clinical_agent_test_page():
@@ -362,4 +763,4 @@ def clinical_agent_route():
 
 if __name__ == "__main__":
     init_db()
-    app.run(host="127.0.0.1", port=5000, debug=False, use_reloader=False)
+    app.run(host="127.0.0.1", port=5000, debug=True)

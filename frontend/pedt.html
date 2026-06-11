@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>PEDT Questionnaire / استبيان تشخيص سرعة القذف</title>
+    <link rel="stylesheet" href="pedt.css">
+</head>
+
+<body>
+
+    <div class="container">
+
+        <form id="pedtForm">
+
+            <!-- STEP 1: Cover Sheet / Guidelines -->
+            <div id="step-1" class="step-container card">
+                <header class="cover-header">
+                    <h1>PREMATURE EJACULATION DIAGNOSTIC TOOL (PEDT)</h1>
+                    <p class="subtitle">Bilingual Clinical Patient Assessment Questionnaire</p>
+                </header>
+
+                <section class="cover-section">
+                    <h2>Background & Purpose / الخلفية والهدف</h2>
+                    <p>This is a validated questionnaire designed to help identify men who may have a problem with
+                        ejaculating too soon during sexual activity. Even if you do not feel you currently have
+                        difficulties, please answer all five questions to ensure a complete evaluation.</p>
+                    <p dir="rtl" class="ar-text">هذا استبيان معتمد سريرياً تم تصميمه لمساعدة الرجال الذين قد يعانون من
+                        مشكلة القذف السريع أثناء النشاط الجنسي. حتى وإن لم تكن تشعر بوجود صعوبات حالياً، يرجى الإجابة عن
+                        جميع الأسئلة الخمسة لضمان الحصول على تقييم كامل ودقيق.</p>
+                </section>
+
+                <section class="cover-section">
+                    <h2>Instructions / التعليمات</h2>
+                    <ul class="guidelines-list">
+                        <li>
+                            Please select the option that best represents your answer for each of the questions below.
+                            <br><span dir="rtl" class="ar-inline">يرجى اختيار الإجابة التي تمثل حالتك بشكل أفضل لكل سؤال
+                                من الأسئلة أدناه.</span>
+                        </li>
+                        <li>
+                            Choose only one answer for each question.
+                            <br><span dir="rtl" class="ar-inline">اختر إجابة واحدة فقط لكل سؤال.</span>
+                        </li>
+                        <li>
+                            Remember, there are no right or wrong answers to these questions.
+                            <br><span dir="rtl" class="ar-inline">تذكر أنه لا توجد إجابات صحيحة أو خاطئة لهذه
+                                الأسئلة.</span>
+                        </li>
+                        <li>
+                            While your experiences may change from time to time, what we need to know is your general
+                            experience with intercourse.
+                            <br><span dir="rtl" class="ar-inline">بينما قد تتغير تجاربك من وقت لآخر، فإن ما نحتاج إلى
+                                معرفته هو تجربتك العامة مع الجماع.</span>
+                        </li>
+                    </ul>
+                </section>
+
+                <section class="cover-section">
+                    <h2>Key Definitions / تعاريف هامة</h2>
+                    <div class="definitions-box"
+                        style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px;">
+                        <p style="margin-bottom: 8px;"><strong>Ejaculation</strong> refers to the release of semen after
+                            penetration (i.e., when your penis enters your partner).</p>
+                        <p dir="rtl" class="ar-text" style="margin-bottom: 0;">يشير <strong>القذف</strong> إلى خروج
+                            السائل المنوي بعد الإيلاج (أي عندما يدخل العضو الذكري في شريكتك).</p>
+                    </div>
+                </section>
+
+                <div class="step-actions">
+                    <button type="button" id="startBtn" class="btn-primary">Start Questionnaire / بدء الاستبيان
+                        &rarr;</button>
+                </div>
+            </div>
+            <!-- STEP 2: Questionnaire -->
+            <div id="step-2" class="step-container hidden">
+
+                <!-- Timing Instruction -->
+                <section class="card definitions-card compact" style="padding: 20px 30px !important;">
+                    <div class="weeks-instruction">
+                        <h3>GENERAL EXPERIENCE WITH INTERCOURSE / التجربة العامة مع الجماع</h3>
+                        <p class="pulse-text" style="color: #1f4e79;">CHECK ONE BOX ONLY / اختر إجابة واحدة فقط لكل سؤال
+                        </p>
+                    </div>
+                </section>
+
+                <!-- Container for Q1 - Q5 -->
+                <div id="questions"></div>
+
+                <div class="step-actions">
+                    <button type="button" id="backToStep1" class="btn-secondary">&larr; Back / العودة للإرشادات</button>
+                    <button type="submit" id="pedtSubmitBtn" class="btn-primary btn-submit">Submit Questionnaire / إرسال
+                        الاستبيان &check;</button>
+                </div>
+            </div>
+
+        </form>
+
+        <!-- Results Panel -->
+        <div id="results" class="hidden results-card">
+            <h2>Results Summary / ملخص النتائج</h2>
+
+            <div class="results-grid-summary">
+                <div class="score-display">
+                    <span class="score-label">Total Score / النتيجة الإجمالية:</span>
+                    <span id="totalScore" class="score-value">0 / 20</span>
+                </div>
+
+                <div class="severity-container">
+                    <span class="severity-label">Assessment / التقييم السريري:</span>
+                    <span id="assessment" class="severity-badge">Normal</span>
+                </div>
+            </div>
+
+            <div class="score-interpretation-box"
+                style="background: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
+                <h3
+                    style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: #0f172a; margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">
+                    Score Interpretation / تفسير النتيجة
+                </h3>
+                <table class="domain-table" style="margin: 10px 0 0 0;">
+                    <thead>
+                        <tr>
+                            <th>Score / الدرجة</th>
+                            <th>Diagnosis / التشخيص</th>
+                            <th>Explanation / التوضيح</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><strong>&le; 8</strong></td>
+                            <td><span style="color: #15803d; font-weight: 600;">Low Likelihood of PE / احتمالية منخفضة
+                                    لسرعة القذف</span></td>
+                            <td style="font-size: 0.85rem;">Indicates a low probability of premature ejaculation
+                                issues.<br><span style="color:#64748b;">يشير إلى احتمالية منخفضة لوجود مشاكل تتعلق
+                                    بالقذف السريع.</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>9 - 10</strong></td>
+                            <td><span style="color: #9a3412; font-weight: 600;">Possible PE / احتمالية وجود سرعة
+                                    قذف</span></td>
+                            <td style="font-size: 0.85rem;">Suggests a moderate/possible issue with control. Further
+                                clinical assessment recommended.<br><span style="color:#64748b;">يشير إلى احتمالية وجود
+                                    مشكلة متوسطة في التحكم. يُنصح بالتقييم السريري.</span></td>
+                        </tr>
+                        <tr>
+                            <td><strong>&ge; 11</strong></td>
+                            <td><span style="color: #b91c1c; font-weight: 600;">Probable PE / احتمالية عالية لسرعة
+                                    القذف</span></td>
+                            <td style="font-size: 0.85rem;">Highly indicates clinical premature ejaculation issues.
+                                Consult a clinician for support.<br><span style="color:#64748b;">يشير بدرجة عالية إلى
+                                    وجود مشكلة سريرية تتعلق بالقذف السريع. يرجى استشارة الطبيب.</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <div class="results-actions">
+                <a id="continueBtn" href="/" class="button-link" style="background: #1f4e79; border-radius: 8px;">Continue /
+                    متابعة &rarr;</a>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="pedt.js"></script>
+</body>
+
+</html>

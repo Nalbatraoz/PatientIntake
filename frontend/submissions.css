@@ -57,3 +57,102 @@ th{width:260px;background:#eef4fb;color:#1f4e79}
   th,td{min-width:160px;word-break:normal}
   th{width:auto}
 }
+
+/* IIEF Dashboard View Styles */
+.iief-details {
+  border: 1px solid #d4dce7;
+  border-radius: 6px;
+  background: #fff;
+  padding: 20px;
+  margin-bottom: 20px;
+}
+.iief-summary-header {
+  margin-bottom: 20px;
+}
+.iief-summary-header h3 {
+  color: #1f4e79;
+  font-size: 17px;
+  margin-top: 0;
+  margin-bottom: 12px;
+}
+.iief-main-stats {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.stat-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f0f6ff;
+  border-radius: 6px;
+  border: 1.5px solid #d0e1f9;
+  font-size: 13.5px;
+}
+.stat-badge strong {
+  color: #475569;
+}
+.stat-badge span {
+  font-weight: 700;
+  color: #1f4e79;
+}
+.stat-badge.severity-severity-none { background: #dcfce7; color: #15803d; border-color: #bbf7d0; }
+.stat-badge.severity-severity-none span { color: #15803d; }
+.stat-badge.severity-severity-mild { background: #fef9c3; color: #854d0e; border-color: #fef08a; }
+.stat-badge.severity-severity-mild span { color: #854d0e; }
+.stat-badge.severity-severity-mild-mod { background: #ffedd5; color: #9a3412; border-color: #fed7aa; }
+.stat-badge.severity-severity-mild-mod span { color: #9a3412; }
+.stat-badge.severity-severity-moderate { background: #fee2e2; color: #b91c1c; border-color: #fecaca; }
+.stat-badge.severity-severity-moderate span { color: #b91c1c; }
+.stat-badge.severity-severity-severe { background: #ffe4e6; color: #9f1239; border-color: #fecdd3; }
+.stat-badge.severity-severity-severe span { color: #9f1239; }
+
+.iief-domain-scores {
+  margin-bottom: 24px;
+}
+.iief-domain-scores h4, .iief-answers-table h4 {
+  color: #1f4e79;
+  font-size: 15px;
+  margin-top: 0;
+  margin-bottom: 10px;
+  border-bottom: 1.5px solid #e2e8f0;
+  padding-bottom: 6px;
+}
+.domain-scores-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 10px;
+}
+.domain-score-card {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  padding: 10px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12.5px;
+}
+.domain-score-card strong {
+  color: #475569;
+}
+.domain-score-card span {
+  font-weight: 700;
+  color: #1f4e79;
+  font-size: 15px;
+}
+.iief-answers-table table {
+  width: 100%;
+  border-collapse: collapse;
+  table-layout: auto !important;
+}
+.iief-answers-table th, .iief-answers-table td {
+  padding: 8px 10px;
+  font-size: 13px;
+  text-align: left;
+}
+.iief-answers-table th {
+  background: #f8fafc;
+  color: #1f4e79;
+}

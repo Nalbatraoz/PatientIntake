@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Low Libido Questionnaire / استبيان انخفاض الرغبة الجنسية</title>
+    <link rel="stylesheet" href="low-libido.css">
+</head>
+<body>
+
+<div class="container">
+    <form id="lowLibidoForm">
+        <div id="step-1" class="step-container card">
+            <header class="cover-header">
+                <h1>LOW LIBIDO ASSESSMENT QUESTIONNAIRE</h1>
+                <p class="subtitle">Male Libido Assessment Questionnaire / استبيان تقييم الرغبة الجنسية لدى الرجال</p>
+            </header>
+
+            <section class="cover-section">
+                <h2>Purpose / الهدف</h2>
+                <p>This questionnaire helps assess sexual desire over the last 4 weeks. It is a screening and monitoring tool, not a diagnosis by itself.</p>
+                <p dir="rtl" class="ar-text">يساعد هذا الاستبيان على تقييم الرغبة الجنسية خلال الأسابيع الأربعة الماضية. وهو أداة فحص ومتابعة وليس تشخيصاً بحد ذاته.</p>
+            </section>
+
+            <section class="cover-section">
+                <h2>How to Answer / طريقة الإجابة</h2>
+                <ul class="guidelines-list">
+                    <li>Select one answer for each question.
+                        <br><span dir="rtl" class="ar-inline">اختر إجابة واحدة فقط لكل سؤال.</span>
+                    </li>
+                    <li>Answer based on your experience over the last 4 weeks.
+                        <br><span dir="rtl" class="ar-inline">أجب بناءً على تجربتك خلال آخر 4 أسابيع.</span>
+                    </li>
+                    <li>Higher scores indicate better libido, while lower scores indicate more reduction in desire.
+                        <br><span dir="rtl" class="ar-inline">الدرجات الأعلى تعني رغبة أفضل، بينما الدرجات الأقل تعني انخفاضاً أكبر في الرغبة.</span>
+                    </li>
+                </ul>
+            </section>
+
+            <section class="cover-section">
+                <h2>Interpretation / التقييم</h2>
+                <table class="domain-table">
+                    <thead>
+                        <tr>
+                            <th>Score / الدرجة</th>
+                            <th>Interpretation / التقييم</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td class="center"><strong>35 - 40</strong></td>
+                            <td>Excellent libido / رغبة ممتازة</td>
+                        </tr>
+                        <tr>
+                            <td class="center"><strong>28 - 34</strong></td>
+                            <td>Mild decrease / انخفاض بسيط</td>
+                        </tr>
+                        <tr>
+                            <td class="center"><strong>20 - 27</strong></td>
+                            <td>Moderate decrease / انخفاض متوسط</td>
+                        </tr>
+                        <tr>
+                            <td class="center"><strong>&lt; 20</strong></td>
+                            <td>Severe decrease, needs comprehensive assessment / انخفاض شديد يحتاج تقييم شامل</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </section>
+
+            <div class="step-actions">
+                <button type="button" id="startBtn" class="btn-primary">Start Questionnaire / بدء الاستبيان &rarr;</button>
+            </div>
+        </div>
+
+        <div id="step-2" class="step-container hidden">
+            <section class="card patient-info-card">
+                <h3>Patient Info / معلومات المريض</h3>
+                <div class="patient-grid">
+                    <div>
+                        <span class="info-label">Name / الاسم:</span>
+                        <input type="text" name="name" readonly required class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">DOB / تاريخ الميلاد:</span>
+                        <input type="date" name="dob" readonly class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">Age / العمر:</span>
+                        <input type="number" name="age" readonly required class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">Phone / الهاتف:</span>
+                        <input type="text" name="phone" readonly required class="flat-input">
+                    </div>
+                </div>
+                <div class="patient-address-row">
+                    <span class="info-label">Address / العنوان:</span>
+                    <input type="text" name="address" readonly class="flat-input">
+                </div>
+            </section>
+
+            <section class="card definitions-card compact">
+                <div class="weeks-instruction">
+                    <h3>OVER THE PAST 4 WEEKS / خلال الأسابيع الأربعة الماضية</h3>
+                    <p class="pulse-text">CHECK ONE BOX ONLY / اختر إجابة واحدة فقط لكل سؤال</p>
+                </div>
+            </section>
+
+            <div id="questions"></div>
+
+            <div class="step-actions">
+                <button type="button" id="backToStep1" class="btn-secondary">&larr; Back / العودة</button>
+                <button type="submit" id="lowLibidoSubmitBtn" class="btn-primary btn-submit">Submit Questionnaire / إرسال الاستبيان &check;</button>
+            </div>
+        </div>
+    </form>
+
+    <div id="results" class="hidden results-card">
+        <h2>Results Summary / ملخص النتائج</h2>
+        <div class="results-grid-summary">
+            <div class="score-display">
+                <span class="score-label">Total Score / النتيجة الإجمالية:</span>
+                <span id="totalScore" class="score-value">0 / 40</span>
+            </div>
+            <div class="severity-container">
+                <span class="severity-label">Assessment / التقييم السريري:</span>
+                <span id="assessment" class="severity-badge">Pending</span>
+            </div>
+        </div>
+
+        <div class="score-interpretation-box">
+            <h3>Score Interpretation / تفسير النتيجة</h3>
+            <table class="domain-table">
+                <thead>
+                    <tr>
+                        <th>Score / الدرجة</th>
+                        <th>Assessment / التقييم</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td><strong>35 - 40</strong></td>
+                        <td>Excellent libido / رغبة ممتازة</td>
+                    </tr>
+                    <tr>
+                        <td><strong>28 - 34</strong></td>
+                        <td>Mild decrease / انخفاض بسيط</td>
+                    </tr>
+                    <tr>
+                        <td><strong>20 - 27</strong></td>
+                        <td>Moderate decrease / انخفاض متوسط</td>
+                    </tr>
+                    <tr>
+                        <td><strong>&lt; 20</strong></td>
+                        <td>Severe decrease / انخفاض شديد</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <div class="results-actions">
+            <a id="continueBtn" href="/" class="button-link">Continue / متابعة &rarr;</a>
+        </div>
+    </div>
+</div>
+
+<script src="low-libido.js"></script>
+</body>
+</html>

@@ -16,6 +16,8 @@ and requires further clinical investigation.
 You will receive raw form data. Field names may vary (camelCase, snake_case, Arabic labels).
 Extract what you can and reason holistically. Do not penalize missing fields.
 
+Create a lifestyle recommendation list based on the patient's data, but only include recommendations relevant to the patient's specific lifestyle factors.
+
 You must respond ONLY with a valid JSON object. No preamble, no explanation outside the JSON.
 
 Response format:

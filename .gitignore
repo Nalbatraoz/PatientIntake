@@ -1,19 +1,54 @@
-APIkey
-uploads/
-RAG Files/
-rag_vectors.db
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.python-version
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+.coverage.*
+htmlcov/
 
+# Virtual environments
 .venv/
 venv/
 env/
+ENV/
 
-__pycache__/
-*.pyc
-*.pyo
+# Environment and secrets
+.env
+.env.*
+APIkey
+*.pem
+*.key
+*.crt
 
+# Local databases and vector stores
 *.db
+*.sqlite
+*.sqlite3
+chroma_db/
 
-latest_submission*.json
+# Application runtime data
+uploads/
 
-ngrok*.log
-server*.log
+# Build and packaging
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Editors and OS
+.vscode/
+.idea/
+*.swp
+*.swo
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Logs and temp files
+*.log
+tmp/
+temp/

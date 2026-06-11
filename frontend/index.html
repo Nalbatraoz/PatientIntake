@@ -1,543 +1,655 @@
 <!DOCTYPE html>
 <html lang="en" dir="ltr">
+
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Patient Intake Questionnaire</title>
   <link rel="stylesheet" href="style.css">
 </head>
+
 <body>
 
-<form id="intakeForm">
-  <h1>Patient Intake Questionnaire<br>استبيان البيانات الطبية للمريض</h1>
+  <form id="intakeForm" class="sections-locked">
+    <h1>Patient Intake Questionnaire<br>استبيان البيانات الطبية للمريض</h1>
 
-  <section>
-    <h2>A. Personal Information / أولاً: البيانات الشخصية</h2>
+    <section class="visit-type-section">
+      <h2>Visit Type / نوع الزيارة</h2>
+      <p>
+        Choose the visit type before continuing.
+        <br>
+        اختر نوع الزيارة قبل المتابعة.
+      </p>
 
-    <label>Code No. / كود المريض</label>
-    <input name="codeNo">
+      <div class="visit-type-options" role="radiogroup" aria-label="Visit Type">
+        <label>
+          <input type="radio" name="visitType" value="urology">
+          <span class="visit-type-card">
+            <strong>مسالك</strong>
+            <small>Urology</small>
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="visitType" value="consultation">
+          <span class="visit-type-card">
+            <strong>استشارة</strong>
+            <small>Consultation</small>
+          </span>
+        </label>
+        <label>
+          <input type="radio" name="visitType" value="examination">
+          <span class="visit-type-card">
+            <strong>كشف</strong>
+            <small>Examination</small>
+          </span>
+        </label>
+      </div>
+    </section>
 
-    <label>Full Name / الاسم الكامل</label>
-    <input name="fullName" required>
+    <section class="patient-status-section">
+      <h2>Patient Status / حالة المريض</h2>
+      <p>
+        Tell us whether this is the first visit or an existing patient record.
+        <br>
+        حدد هل هذه أول زيارة أم أن للمريض كود سابق.
+      </p>
 
-    <label>Age / السن</label>
-    <input type="number" name="age">
+      <div class="radio-group">
+        <label><input type="radio" name="patientStatus" value="first_time"> First time visiting / أول زيارة</label>
+        <label><input type="radio" name="patientStatus" value="existing"> Existing customer / مريض سابق</label>
+      </div>
 
-    <label>Nationality / الجنسية</label>
-    <input name="nationality">
+      <div id="firstTimePanel" class="patient-code-panel" hidden>
+        <p class="hint">A new patient code will be generated automatically. / سيتم إنشاء كود جديد تلقائيا.</p>
+        <button id="generateCodeButton" class="secondary-button" type="button">Generate Code & Continue / إنشاء الكود
+          والمتابعة</button>
+      </div>
 
-    <label>Occupation / الوظيفة</label>
-    <input name="occupation">
+      <div id="existingPatientPanel" class="patient-code-panel" hidden>
+        <label for="existingPatientCode">Patient Code / كود المريض</label>
+        <div class="patient-code-search">
+          <input id="existingPatientCode" placeholder="Example: INT-1">
+          <button id="findPatientButton" class="secondary-button" type="button">Search / بحث</button>
+        </div>
+      </div>
 
-    <label>Mobile No. / رقم الموبايل</label>
-    <input name="mobile">
+      <p id="patientCodeStatus" class="patient-code-status" role="status" aria-live="polite"></p>
+    </section>
 
-    <label>Email Address / البريد الإلكتروني</label>
-    <input type="email" name="email">
-  </section>
+    <section>
+      <h2>A. Personal Information / أولاً: البيانات الشخصية</h2>
 
-  <section>
-    <h2>B. Marital Status & History / ثانياً: الحالة الاجتماعية والزوجية</h2>
+      <label>Code No. / كود المريض</label>
+      <input name="codeNo" readonly>
 
-    <label>Marital Status / الحالة الاجتماعية</label>
-    <div class="radio-group">
-      <label><input type="radio" name="maritalStatus" value="single"> Single / أعزب</label>
-      <label><input type="radio" name="maritalStatus" value="married"> Married / متزوج</label>
-      <label><input type="radio" name="maritalStatus" value="divorced"> Divorced / مطلق</label>
-      <label><input type="radio" name="maritalStatus" value="widow"> Widow / أرمل</label>
-    </div>
+      <label>Full Name / الاسم الكامل</label>
+      <input name="fullName" required>
 
-    <label>Duration of Marriage / مدة الزواج</label>
-    <input name="durationMarriage">
+      <label>Age / السن</label>
+      <input type="number" name="age">
 
-    <label>Number of Wives if applicable / عدد الزوجات إن وجد</label>
-    <input type="number" name="numberWives">
+      <label>Nationality / الجنسية</label>
+      <input name="nationality">
 
-    <label>Number of Children / عدد الأبناء</label>
-    <input type="number" name="numberChildren">
+      <label>Occupation / الوظيفة</label>
+      <input name="occupation">
 
-    <label>Age of Youngest Child / سن أصغر الأبناء</label>
-    <input name="youngestChildAge">
+      <label>Mobile No. / رقم الموبايل</label>
+      <input name="mobile">
 
-    <label>Willing to Conceive? / الرغبة في الإنجاب</label>
-    <div class="radio-group">
-      <label><input type="radio" name="willingConceive" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="willingConceive" value="no"> No / لا</label>
-    </div>
+      <label>Email Address / البريد الإلكتروني</label>
+      <input type="email" name="email">
+    </section>
 
-    <label>Previous Trials to Conceive / محاولات سابقة للإنجاب</label>
-    <textarea name="previousConceiveTrials"></textarea>
+    <section>
+      <h2>B. Marital Status & History / ثانياً: الحالة الاجتماعية والزوجية</h2>
 
-    <label>Methods of Contraception / وسائل منع الحمل</label>
-    <textarea name="contraceptionMethods"></textarea>
+      <label>Marital Status / الحالة الاجتماعية</label>
+      <div class="radio-group">
+        <label><input type="radio" name="maritalStatus" value="single"> Single / أعزب</label>
+        <label><input type="radio" name="maritalStatus" value="married"> Married / متزوج</label>
+        <label><input type="radio" name="maritalStatus" value="divorced"> Divorced / مطلق</label>
+        <label><input type="radio" name="maritalStatus" value="widow"> Widow / أرمل</label>
+      </div>
 
-      <label>If Divorced: Is it related to the current medical complaint? / إذا كنت مطلقاً: هل الطلاق مرتبط بالشكوى الطبية الحالية؟</label>
+      <label>Duration of Marriage / مدة الزواج</label>
+      <input name="durationMarriage">
+
+      <label>Number of Wives if applicable / عدد الزوجات إن وجد</label>
+      <input type="number" name="numberWives">
+
+      <label>Number of Children / عدد الأبناء</label>
+      <input type="number" name="numberChildren">
+
+      <label>Age of Youngest Child / سن أصغر الأبناء</label>
+      <input name="youngestChildAge">
+
+      <label>Willing to Conceive? / الرغبة في الإنجاب</label>
+      <div class="radio-group">
+        <label><input type="radio" name="willingConceive" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="willingConceive" value="no"> No / لا</label>
+      </div>
+
+      <label>Previous Trials to Conceive / محاولات سابقة للإنجاب</label>
+      <textarea name="previousConceiveTrials"></textarea>
+
+      <label>Methods of Contraception / وسائل منع الحمل</label>
+      <textarea name="contraceptionMethods"></textarea>
+
+      <label>If Divorced: Is it related to the current medical complaint? / إذا كنت مطلقاً: هل الطلاق مرتبط بالشكوى
+        الطبية الحالية؟</label>
       <div class="radio-group">
         <label><input type="radio" name="divorceRelated" value="yes"> Yes / نعم</label>
         <label><input type="radio" name="divorceRelated" value="no"> No / لا</label>
       </div>
-  </section>
+    </section>
 
-  <section>
-    <h2>C. Allergies / ثالثاً: الحساسية</h2>
+    <section>
+      <h2>C. Allergies / ثالثاً: الحساسية</h2>
 
-    <label>Drug Allergies / حساسية الأدوية</label>
-    <textarea name="drugAllergies"></textarea>
+      <label>Drug Allergies / حساسية الأدوية</label>
+      <textarea name="drugAllergies"></textarea>
 
-    <label>Other Allergies / حساسية أخرى</label>
-    <textarea name="otherAllergies"></textarea>
-  </section>
+      <label>Other Allergies / حساسية أخرى</label>
+      <textarea name="otherAllergies"></textarea>
+    </section>
 
-  <section>
-    <h2>D. Marketing / Referral / رابعاً: التسويق والإحالة</h2>
 
-    <label>How did you know about us? / كيف تعرفت علينا؟</label>
-    <div class="grid">
-      <label><input type="checkbox" name="referral" value="google"> Google / جوجل</label>
-      <label><input type="checkbox" name="referral" value="facebook"> Facebook / فيسبوك</label>
-      <label><input type="checkbox" name="referral" value="instagram"> Instagram / انستجرام</label>
-      <label><input type="checkbox" name="referral" value="tiktok"> TikTok / تيك توك</label>
-      <label><input type="checkbox" name="referral" value="referral"> Referral / توصية</label>
-    </div>
-  </section>
+    <section>
 
-  <section>
-    <h2>E. Chronic Diseases & Medical History Table / خامساً: جدول الأمراض المزمنة والتاريخ المرضي</h2>
-    <div class="conditions-box">
-      <table class="conditions-table">
-        <thead>
-          <tr>
-            <th>System / الجهاز</th>
-            <th>Included Conditions & Meaning / الحالات المرضية ومعناها</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>1. Heart & Vascular / القلب والأوعية الدموية</td>
-            <td>
-              <b>Hypertension</b> — High blood pressure / ارتفاع ضغط الدم<br><br>
-              <b>Coronary Artery Disease</b> — Narrowing of heart arteries reducing blood flow / تضيق شرايين القلب مما يقلل تدفق الدم<br><br>
-              <b>Angina</b> — Chest pain caused by reduced blood supply to the heart / ألم بالصدر بسبب ضعف تدفق الدم للقلب<br><br>
-              <b>Heart Failure</b> — Weak heart pumping function / ضعف قدرة القلب على ضخ الدم<br><br>
-              <b>Arrhythmias</b> — Irregular heartbeat / اضطراب ضربات القلب<br><br>
-              <b>Peripheral Vascular Disease</b> — Poor blood circulation in arms or legs / ضعف الدورة الدموية بالأطراف<br><br>
-              <b>History of Heart Attack or Stroke</b> — Previous heart or brain blood vessel event / تاريخ سابق لجلطة قلبية أو دماغية<br><br>
-              <b>Dyslipidemia</b> — Abnormal cholesterol levels / اضطراب الدهون والكوليسترول<br><br>
-              <b>Use of Nitrates</b> — Heart medications used for chest pain / أدوية القلب المستخدمة للذبحة الصدرية
-            </td>
-          </tr>
-          <tr>
-            <td>2. Metabolic & Endocrine / التمثيل الغذائي والغدد الصماء</td>
-            <td>
-              <b>Diabetes</b> — High blood sugar disease / مرض السكري<br><br>
-              <b>Insulin Resistance</b> — Body not responding properly to insulin / مقاومة الجسم للإنسولين<br><br>
-              <b>Obesity</b> — Excess body fat / السمنة وزيادة الدهون<br><br>
-              <b>Metabolic Syndrome</b> — Combination of obesity, diabetes, pressure, and cholesterol problems / متلازمة تشمل السمنة والسكري والضغط والكوليسترول<br><br>
-              <b>Thyroid Disease</b> — Overactive or underactive thyroid gland / اضطرابات الغدة الدرقية<br><br>
-              <b>Pituitary Disorders</b> — Hormonal gland problems in the brain / اضطرابات الغدة النخامية<br><br>
-              <b>Hypogonadism</b> — Low testosterone production / نقص إنتاج هرمون الذكورة<br><br>
-              <b>Hyperprolactinemia</b> — High prolactin hormone levels / ارتفاع هرمون الحليب<br><br>
-              <b>Adrenal Disease</b> — Disorders of adrenal hormone glands / أمراض الغدة الكظرية
-            </td>
-          </tr>
-          <tr>
-            <td>3. Neurological / الجهاز العصبي</td>
-            <td>
-              <b>Multiple Sclerosis</b> — Disease affecting nerves and brain signals / مرض يصيب الأعصاب والدماغ<br><br>
-              <b>Parkinson's Disease</b> — Movement disorder causing tremors and stiffness / مرض يسبب الرعشة وضعف الحركة<br><br>
-              <b>Spinal Cord Injury</b> — Damage to spinal nerves / إصابة الحبل الشوكي<br><br>
-              <b>Cerebral Stroke</b> — Brain blood circulation blockage / جلطة دماغية<br><br>
-              <b>Neuropathy</b> — Nerve damage causing numbness or pain / تلف الأعصاب والتنميل<br><br>
-              <b>Disc Prolapse</b> — Slipped spinal disc / انزلاق غضروفي<br><br>
-              <b>Spinal Surgery</b> — Previous back or spine surgery / عمليات العمود الفقري<br><br>
-              <b>Epilepsy</b> — Seizure disorder / مرض الصرع
-            </td>
-          </tr>
-          <tr>
-            <td>4. Psychiatric / الحالة النفسية</td>
-            <td>
-              <b>Depression</b> — Persistent sadness and low mood / الاكتئاب والحزن المستمر<br><br>
-              <b>Anxiety</b> — Excessive worry and nervousness / القلق والتوتر الزائد<br><br>
-              <b>Panic Disorder</b> — Sudden severe anxiety attacks / نوبات الهلع<br><br>
-              <b>OCD</b> — Obsessive repetitive thoughts and behaviors / الوسواس القهري<br><br>
-              <b>Bipolar Disorder</b> — Extreme mood changes / اضطراب ثنائي القطب<br><br>
-              <b>PTSD</b> — Trauma-related stress disorder / اضطراب ما بعد الصدمة
-            </td>
-          </tr>
-          <tr>
-            <td>5. Liver & Kidney / الكبد والكلى</td>
-            <td>
-              <b>Chronic Kidney Disease</b> — Long-term kidney damage / مرض الكلى المزمن<br><br>
-              <b>Dialysis</b> — Artificial blood filtration treatment / غسيل الكلى<br><br>
-              <b>Chronic Liver Disease</b> — Long-term liver damage / مرض الكبد المزمن<br><br>
-              <b>Hepatitis</b> — Liver inflammation / التهاب الكبد
-            </td>
-          </tr>
-          <tr>
-            <td>6. Sleeping & Breathing / النوم والتنفس</td>
-            <td>
-              <b>Obstructive Sleep Apnea</b> — Repeated breathing interruption during sleep / انقطاع التنفس أثناء النوم<br><br>
-              <b>Chronic Lung Disease</b> — Long-term breathing disease / مرض رئوي مزمن<br><br>
-              <b>COPD</b> — Chronic airway blockage usually from smoking / انسداد رئوي مزمن غالباً بسبب التدخين
-            </td>
-          </tr>
-          <tr>
-            <td>7. Immunity & Inflammatory / المناعة والالتهابات</td>
-            <td>
-              <b>Rheumatoid Arthritis</b> — Immune system attacking joints / التهاب المفاصل الروماتويدي<br><br>
-              <b>Lupus</b> — Autoimmune disease affecting multiple organs / مرض مناعي ذاتي متعدد الأعضاء<br><br>
-              <b>Psoriasis</b> — Chronic skin inflammation / الصدفية<br><br>
-              <b>Inflammatory Bowel Disease</b> — Chronic intestinal inflammation / التهابات مزمنة بالأمعاء
-            </td>
-          </tr>
-          <tr>
-            <td>8. Oncology & Cancer Treatment / الأورام وعلاج السرطان</td>
-            <td>
-              <b>Cancer History</b> — Previous or current cancer diagnosis / تاريخ مرضي للسرطان<br><br>
-              <b>Chemotherapy</b> — Cancer treatment using medications / العلاج الكيماوي<br><br>
-              <b>Radiotherapy</b> — Cancer treatment using radiation / العلاج الإشعاعي
-            </td>
-          </tr>
-          <tr>
-            <td>9. Surgeries / العمليات الجراحية</td>
-            <td>
-              <b>Pelvic Surgery</b> — Surgery involving pelvic organs / جراحة الحوض<br><br>
-              <b>Penile Surgery</b> — Surgery involving the penis / جراحة العضو الذكري<br><br>
-              <b>Prostate Surgery</b> — Surgery involving the prostate gland / جراحة البروستاتا<br><br>
-              <b>Testicular Surgery</b> — Surgery involving the testicles / جراحة الخصية
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
 
-    <div class="section-instruction">
-      <span class="instruction-icon"> </span>
-      <div>
-        <p class="instruction-en">Review the table above — if you have any condition listed, fill in the corresponding row below with the disease name, how long you've had it, how well it's controlled, your medication and dosage, and whether you think it's related to your current complaint.</p>
-        <p class="instruction-ar">راجع الجدول أعلاه — إذا كنت تعاني من أي حالة مذكورة، أكمل الصف المقابل أدناه بذكر اسم المرض، ومدة الإصابة، ومدى التحكم فيه، والدواء والجرعة، وما إذا كنت تعتقد أنه مرتبط بشكواك الحالية.</p>
-      </div>
-    </div>
 
-    <div class="data-entry-table-wrapper">
-      <table data-optional="true">
-        <thead>
-          <tr>
-            <th>System / الجهاز</th>
-            <th>Specific Disease / المرض بالتفصيل</th>
-            <th>Duration / المدة</th>
-            <th>Control Status / حالة التحكم</th>
-            <th>Medication & Dosage / الدواء والجرعة</th>
-            <th>Sexual Relevance / العلاقة بالحالة الجنسية</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Heart & Vascular / القلب والأوعية الدموية</td>
-            <td><input name="heartDisease"></td>
-            <td><input name="heartDuration"></td>
-            <td><input name="heartControl"></td>
-            <td><input name="heartMedication"></td>
-            <td><input name="heartRelevance"></td>
-          </tr>
-          <tr>
-            <td>Metabolic & Endocrine / التمثيل الغذائي والغدد الصماء</td>
-            <td><input name="metabolicDisease"></td>
-            <td><input name="metabolicDuration"></td>
-            <td><input name="metabolicControl"></td>
-            <td><input name="metabolicMedication"></td>
-            <td><input name="metabolicRelevance"></td>
-          </tr>
-          <tr>
-            <td>Neurological / الجهاز العصبي</td>
-            <td><input name="neuroDisease"></td>
-            <td><input name="neuroDuration"></td>
-            <td><input name="neuroControl"></td>
-            <td><input name="neuroMedication"></td>
-            <td><input name="neuroRelevance"></td>
-          </tr>
-          <tr>
-            <td>Psychiatric / الحالة النفسية</td>
-            <td><input name="psychDisease"></td>
-            <td><input name="psychDuration"></td>
-            <td><input name="psychControl"></td>
-            <td><input name="psychMedication"></td>
-            <td><input name="psychRelevance"></td>
-          </tr>
-          <tr>
-            <td>Liver & Kidney / الكبد والكلى</td>
-            <td><input name="liverKidneyDisease"></td>
-            <td><input name="liverKidneyDuration"></td>
-            <td><input name="liverKidneyControl"></td>
-            <td><input name="liverKidneyMedication"></td>
-            <td><input name="liverKidneyRelevance"></td>
-          </tr>
-          <tr>
-            <td>Sleeping & Breathing / النوم والتنفس</td>
-            <td><input name="sleepBreathingDisease"></td>
-            <td><input name="sleepBreathingDuration"></td>
-            <td><input name="sleepBreathingControl"></td>
-            <td><input name="sleepBreathingMedication"></td>
-            <td><input name="sleepBreathingRelevance"></td>
-          </tr>
-          <tr>
-            <td>Immunity & Inflammatory / المناعة والالتهابات</td>
-            <td><input name="immunityDisease"></td>
-            <td><input name="immunityDuration"></td>
-            <td><input name="immunityControl"></td>
-            <td><input name="immunityMedication"></td>
-            <td><input name="immunityRelevance"></td>
-          </tr>
-          <tr>
-            <td>Oncology & Cancer Treatment / الأورام وعلاج السرطان</td>
-            <td><input name="oncologyDisease"></td>
-            <td><input name="oncologyDuration"></td>
-            <td><input name="oncologyControl"></td>
-            <td><input name="oncologyMedication"></td>
-            <td><input name="oncologyRelevance"></td>
-          </tr>
-          <tr>
-            <td>Surgeries / العمليات الجراحية</td>
-            <td><input name="surgeryDisease"></td>
-            <td><input name="surgeryDuration"></td>
-            <td><input name="surgeryControl"></td>
-            <td><input name="surgeryMedication"></td>
-            <td><input name="surgeryRelevance"></td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-  </section>
-
-  <section>
-    <h2>F. Lifestyle & Habits / سادساً: أسلوب الحياة والعادات</h2>
-
-    <label>Average sleep hours / متوسط ساعات النوم</label>
-    <input name="sleepHours">
-
-    <label>Type of sleep / طبيعة النوم</label>
-    <div class="radio-group">
-      <label><input type="radio" name="sleepType" value="night"> Night / ليلي</label>
-      <label><input type="radio" name="sleepType" value="day"> Day / نهاري</label>
-    </div>
-
-    <label>Sleep quality 1-10 / جودة النوم من ١ إلى ١٠</label>
-    <input type="number" min="1" max="10" name="sleepQuality">
-
-    <label>Snoring or witnessed apnea? / شخير أو انقطاع نفس أثناء النوم؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="snoring" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="snoring" value="no"> No / لا</label>
-    </div>
-
-    <label>Daytime fatigue / sleepiness? / خمول أو رغبة في النوم نهاراً؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="daytimeFatigue" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="daytimeFatigue" value="no"> No / لا</label>
-    </div>
-
-    <label>Exercise frequency per week / معدل ممارسة الرياضة أسبوعياً</label>
-    <input name="exerciseFrequency">
-
-    <label>Type of exercise / نوع الرياضة</label>
-    <div class="grid">
-      <label><input type="checkbox" name="exerciseType" value="resistance"> Resistance / مقاومة</label>
-      <label><input type="checkbox" name="exerciseType" value="cardio"> Cardio / كارديو</label>
-      <label><input type="checkbox" name="exerciseType" value="none"> None / لا يوجد</label>
-    </div>
-
-    <label>Sitting hours per day / عدد ساعات الجلوس يومياً</label>
-    <input name="sittingHours">
-
-    <label>Weight / الوزن</label>
-    <input name="weight">
-
-    <label>Height / الطول</label>
-    <input name="height">
-
-    <label>BMI / مؤشر كتلة الجسم</label>
-    <input name="bmi">
-
-    <label>Waist Circumference / محيط الخصر</label>
-    <input name="waist">
-
-    <label>Late night eating / الأكل في وقت متأخر من الليل</label>
-    <div class="radio-group">
-      <label><input type="radio" name="lateNightEating" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="lateNightEating" value="no"> No / لا</label>
-    </div>
-
-    <label>Smoking Status / حالة التدخين</label>
-    <div class="radio-group">
-      <label><input type="radio" name="smokingStatus" value="never"> Never / لم أدخن أبداً</label>
-      <label><input type="radio" name="smokingStatus" value="former"> Former / مدخن سابق</label>
-      <label><input type="radio" name="smokingStatus" value="current"> Current / مدخن حالي</label>
-    </div>
-
-    <label>Cigarettes per day / عدد السجائر يومياً</label>
-    <input name="cigarettesPerDay">
-
-    <label>Alcohol consumption / تناول الكحول</label>
-    <div class="radio-group">
-      <label><input type="radio" name="alcohol" value="none"> None / لا يوجد</label>
-      <label><input type="radio" name="alcohol" value="occasionally"> Occasionally / أحياناً</label>
-      <label><input type="radio" name="alcohol" value="frequent"> Frequent / متكرر</label>
-    </div>
-
-    <label>Recreational drug use / استخدام مواد ترفيهية</label>
-    <div class="radio-group">
-      <label><input type="radio" name="recreationalDrugUse" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="recreationalDrugUse" value="no"> No / لا</label>
-    </div>
-
-    <label>Pornography viewing frequency / معدل مشاهدة المحتوى الإباحي</label>
-    <div class="radio-group">
-      <label><input type="radio" name="pornographyFrequency" value="never"> Never / أبداً</label>
-      <label><input type="radio" name="pornographyFrequency" value="occasionally"> Occasionally / أحياناً</label>
-      <label><input type="radio" name="pornographyFrequency" value="frequent"> Frequent / متكرر</label>
-      <label><input type="radio" name="pornographyFrequency" value="daily"> Daily / يومياً</label>
-    </div>
-
-    <label>Masturbation / العادة السرية</label>
-    <div class="radio-group">
-      <label><input type="radio" name="masturbation" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="masturbation" value="no"> No / لا</label>
-    </div>
-
-    <label>Difficulty with partner but NOT with masturbation? / صعوبة مع الشريك وليس أثناء العادة السرية؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="partnerDifficultyOnly" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="partnerDifficultyOnly" value="no"> No / لا</label>
-    </div>
-  </section>
-
-  <section>
-    <h2>G. Psychological, Occupational & Recovery Metrics / سابعاً: المقاييس النفسية والمهنية ومؤشرات التعافي</h2>
-
-    <label>Stress level 1-10 / مستوى الضغوط من ١ إلى ١٠</label>
-    <input type="number" min="1" max="10" name="stressLevel">
-
-    <label>Anxiety / Depression formal diagnosis? / تشخيص رسمي بقلق أو اكتئاب؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="anxietyDepression" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="anxietyDepression" value="no"> No / لا</label>
-    </div>
-
-    <label>Major relationship conflict? / خلافات حادة في العلاقة الزوجية؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="relationshipConflict" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="relationshipConflict" value="no"> No / لا</label>
-    </div>
-
-    <label>Performance anxiety during intercourse? / قلق الأداء أثناء العلاقة الحميمة؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="performanceAnxiety" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="performanceAnxiety" value="no"> No / لا</label>
-    </div>
-
-    <label>Mostly sedentary work? / طبيعة العمل مكتبية أو قليلة الحركة؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="sedentaryWork" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="sedentaryWork" value="no"> No / لا</label>
-    </div>
-
-    <label>Night shifts? / هل يتضمن العمل مناوبات ليلية؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="nightShifts" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="nightShifts" value="no"> No / لا</label>
-    </div>
-
-    <label>Heat / Toxin exposure at work? / التعرض للحرارة العالية أو السموم في العمل؟</label>
-    <div class="radio-group">
-      <label><input type="radio" name="heatToxinExposure" value="yes"> Yes / نعم</label>
-      <label><input type="radio" name="heatToxinExposure" value="no"> No / لا</label>
-    </div>
-
-    <label>General Energy level 1-10 / مستوى الطاقة العام من ١ إلى ١٠</label>
-    <input type="number" min="1" max="10" name="energyLevel">
-
-    <label>Libido / Sexual desire 1-10 / مستوى الرغبة الجنسية من ١ إلى ١٠</label>
-    <input type="number" min="1" max="10" name="libidoScore">
-
-    <label>Post-exercise / Daily recovery 1-10 / معدل الاستشفاء والتعافي البدني من ١ إلى ١٠</label>
-    <input type="number" min="1" max="10" name="recoveryScore">
-  </section>
-
-  <section>
-    <h2>H. Primary Complaints & Clinical Pathway Selector / ثامناً: الشكوى الرئيسية وتحديد المسار العلاجي</h2>
-
-    <p>
-      Please check your main complaints.
-      <br>
-      برجاء تحديد الشكوى الأساسية والفرعية.
-    </p>
-
-    <div class="grid">
-      <label><input type="checkbox" name="complaints" value="erectile_dysfunction"> Erectile Dysfunction / ضعف الانتصاب</label>
-      <label><input type="checkbox" name="complaints" value="premature_ejaculation"> Premature Ejaculation / القذف السريع</label>
-      <label><input type="checkbox" name="complaints" value="delayed_ejaculation"> Delayed Ejaculation or Anorgasmia / تأخر القذف أو عدم الوصول للنشوة</label>
-      <label><input type="checkbox" name="complaints" value="low_libido"> Low Libido / ضعف الرغبة</label>
-      <label><input type="checkbox" name="complaints" value="infertility"> Infertility / العقم وتأخر الإنجاب</label>
-      <label><input type="checkbox" name="complaints" value="peyronie"> Penile Curvature or Peyronie's / انحناء أو اعوجاج العضو الذكري</label>
-      <label><input type="checkbox" name="complaints" value="size_concern"> Penile Size Concern / القلق بشأن حجم العضو الذكري</label>
-      <label><input type="checkbox" name="complaints" value="low_testosterone"> Low Testosterone Symptoms / أعراض نقص هرمون التستوستيرون</label>
-      <label><input type="checkbox" name="complaints" value="pelvic_pain"> Pelvic / Genital Pain / آلام الحوض والأعضاء التناسلية</label>
-      <label><input type="checkbox" name="complaints" value="scrotal_pain"> Scrotal / Testicular Swelling or Pain / آلام أو تورم الخصية والصفن</label>
-      <label><input type="checkbox" name="complaints" value="sti"> STI / Sexual Infection / الأمراض المنقولة جنسياً</label>
-      <label><input type="checkbox" name="complaints" value="follow_up"> Follow-up Visit / زيارة متابعة دورية</label>
-    </div>
-  </section>
-
-  <section id="medicationUploadSection">
-    <h2>I. Medication & Investigation Uploads / رفع الأدوية والفحوصات</h2>
-
-    <div class="medical-scan-notice">
-      <strong>Clinical review required / يلزم مراجعة الطبيب.</strong>
-      The scan supports intake documentation only. Confirm every medication name, dose, allergy, warning, and interaction before using it for care decisions.
-      <br>
-      المسح يساعد فقط في توثيق بيانات الاستبيان. يجب تأكيد اسم كل دواء والجرعة والحساسية والتحذيرات والتداخلات الدوائية قبل الاعتماد عليها في أي قرار علاجي.
-    </div>
-
-    <label>Current Medications / الأدوية الحالية</label>
-    <textarea id="currentMedications" name="currentMedications" placeholder="Example / مثال: Metformin 500 mg twice daily, Aspirin 81 mg daily"></textarea>
-
-    <label>Medical History Summary / ملخص التاريخ المرضي</label>
-    <textarea id="medicalHistory" name="medicalHistory" placeholder="Relevant diagnoses, allergies, surgeries, kidney/liver disease, cardiac history / التشخيصات، الحساسية، العمليات، أمراض الكلى أو الكبد، تاريخ أمراض القلب"></textarea>
-
-    <label>Investigation / Lab Result Summary / ملخص الفحوصات والتحاليل</label>
-    <textarea id="investigationResults" name="investigationResults" placeholder="Recent lab values, imaging findings, reports, or other investigation notes / نتائج التحاليل الحديثة، الأشعات، التقارير، أو أي ملاحظات فحص"></textarea>
-
-    <div class="upload-grid">
-      <div class="upload-field">
-        <label for="drugImageFiles">Drug / Package Photos / صور الأدوية أو العبوات</label>
-        <input id="drugImageFiles" type="file" accept="image/*" multiple data-optional="true">
-        <div id="drugImagePreview" class="upload-preview" aria-live="polite"></div>
+      <h2>D. Chronic Diseases & Medical History Table / رابعا: جدول الأمراض المزمنة والتاريخ المرضي</h2>
+      <div class="section-instruction">
+        <span class="instruction-icon"> </span>
+        <div>
+          <p class="instruction-en">Review the table above — if you have any condition listed, Check the corresponding
+            row below with the disease name, how long you've had it, how well it's controlled, your medication and
+            dosage, and whether you think it's related to your current complaint.</p>
+          <p class="instruction-ar">راجع الجدول أعلاه — إذا كنت تعاني من أي حالة مذكورة، أكمل الصف المقابل أدناه بذكر
+            اسم المرض، ومدة الإصابة، ومدى التحكم فيه، والدواء والجرعة، وما إذا كنت تعتقد أنه مرتبط بشكواك الحالية.</p>
+        </div>
       </div>
 
-      <div class="upload-field">
-        <label for="investigationFiles">Investigation Files / Photos / ملفات أو صور الفحوصات</label>
-        <input id="investigationFiles" type="file" accept="image/*,.pdf" multiple data-optional="true">
-        <div id="investigationFileList" class="upload-file-list" aria-live="polite"></div>
+      <div class="conditions-box">
+        <table class="conditions-table">
+          <thead>
+            <tr>
+              <th>System / الجهاز</th>
+              <th>Included Conditions & Meaning / الحالات المرضية ومعناها</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>1. Heart & Vascular / القلب والأوعية الدموية</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="hypertension"> <b>Hypertension</b> -
+                    High blood pressure / ارتفاع ضغط الدم</label>
+                  <label><input type="checkbox" name="medicalConditions" value="coronary_artery_disease"> <b>Coronary
+                      Artery Disease</b> - Narrowing of heart arteries reducing blood flow / تضيق شرايين القلب مما يقلل
+                    تدفق الدم</label>
+                  <label><input type="checkbox" name="medicalConditions" value="angina"> <b>Angina</b> - Chest pain
+                    caused by reduced blood supply to the heart / ألم بالصدر بسبب ضعف تدفق الدم للقلب</label>
+                  <label><input type="checkbox" name="medicalConditions" value="heart_failure"> <b>Heart Failure</b> -
+                    Weak heart pumping function / ضعف قدرة القلب على ضخ الدم</label>
+                  <label><input type="checkbox" name="medicalConditions" value="arrhythmias"> <b>Arrhythmias</b> -
+                    Irregular heartbeat / اضطراب ضربات القلب</label>
+                  <label><input type="checkbox" name="medicalConditions" value="peripheral_vascular_disease">
+                    <b>Peripheral Vascular Disease</b> - Poor blood circulation in arms or legs / ضعف الدورة الدموية
+                    بالأطراف</label>
+                  <label><input type="checkbox" name="medicalConditions" value="heart_attack_or_stroke_history">
+                    <b>History of Heart Attack or Stroke</b> - Previous heart or brain blood vessel event / تاريخ سابق
+                    لجلطة قلبية أو دماغية</label>
+                  <label><input type="checkbox" name="medicalConditions" value="dyslipidemia"> <b>Dyslipidemia</b> -
+                    Abnormal cholesterol levels / اضطراب الدهون والكوليسترول</label>
+                  <label><input type="checkbox" name="medicalConditions" value="nitrates_use"> <b>Use of Nitrates</b> -
+                    Heart medications used for chest pain / أدوية القلب المستخدمة للذبحة الصدرية</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>2. Metabolic & Endocrine / التمثيل الغذائي والغدد الصماء</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="diabetes"> <b>Diabetes</b> - High blood
+                    sugar disease / مرض السكري</label>
+                  <label><input type="checkbox" name="medicalConditions" value="insulin_resistance"> <b>Insulin
+                      Resistance</b> - Body not responding properly to insulin / مقاومة الجسم للإنسولين</label>
+                  <label><input type="checkbox" name="medicalConditions" value="obesity"> <b>Obesity</b> - Excess body
+                    fat / السمنة وزيادة الدهون</label>
+                  <label><input type="checkbox" name="medicalConditions" value="metabolic_syndrome"> <b>Metabolic
+                      Syndrome</b> - Combination of obesity, diabetes, pressure, and cholesterol problems / متلازمة تشمل
+                    السمنة والسكري والضغط والكوليسترول</label>
+                  <label><input type="checkbox" name="medicalConditions" value="thyroid_disease"> <b>Thyroid Disease</b>
+                    - Overactive or underactive thyroid gland / اضطرابات الغدة الدرقية</label>
+                  <label><input type="checkbox" name="medicalConditions" value="pituitary_disorders"> <b>Pituitary
+                      Disorders</b> - Hormonal gland problems in the brain / اضطرابات الغدة النخامية</label>
+                  <label><input type="checkbox" name="medicalConditions" value="hypogonadism"> <b>Hypogonadism</b> - Low
+                    testosterone production / نقص إنتاج هرمون الذكورة</label>
+                  <label><input type="checkbox" name="medicalConditions" value="hyperprolactinemia">
+                    <b>Hyperprolactinemia</b> - High prolactin hormone levels / ارتفاع هرمون الحليب</label>
+                  <label><input type="checkbox" name="medicalConditions" value="adrenal_disease"> <b>Adrenal Disease</b>
+                    - Disorders of adrenal hormone glands / أمراض الغدة الكظرية</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>3. Neurological / الجهاز العصبي</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="multiple_sclerosis"> <b>Multiple
+                      Sclerosis</b> - Disease affecting nerves and brain signals / مرض يصيب الأعصاب والدماغ</label>
+                  <label><input type="checkbox" name="medicalConditions" value="parkinsons_disease"> <b>Parkinson's
+                      Disease</b> - Movement disorder causing tremors and stiffness / مرض يسبب الرعشة وضعف
+                    الحركة</label>
+                  <label><input type="checkbox" name="medicalConditions" value="spinal_cord_injury"> <b>Spinal Cord
+                      Injury</b> - Damage to spinal nerves / إصابة الحبل الشوكي</label>
+                  <label><input type="checkbox" name="medicalConditions" value="cerebral_stroke"> <b>Cerebral Stroke</b>
+                    - Brain blood circulation blockage / جلطة دماغية</label>
+                  <label><input type="checkbox" name="medicalConditions" value="neuropathy"> <b>Neuropathy</b> - Nerve
+                    damage causing numbness or pain / تلف الأعصاب والتنميل</label>
+                  <label><input type="checkbox" name="medicalConditions" value="disc_prolapse"> <b>Disc Prolapse</b> -
+                    Slipped spinal disc / انزلاق غضروفي</label>
+                  <label><input type="checkbox" name="medicalConditions" value="spinal_surgery"> <b>Spinal Surgery</b> -
+                    Previous back or spine surgery / عمليات العمود الفقري</label>
+                  <label><input type="checkbox" name="medicalConditions" value="epilepsy"> <b>Epilepsy</b> - Seizure
+                    disorder / مرض الصرع</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>4. Psychiatric / الحالة النفسية</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="depression"> <b>Depression</b> -
+                    Persistent sadness and low mood / الاكتئاب والحزن المستمر</label>
+                  <label><input type="checkbox" name="medicalConditions" value="anxiety"> <b>Anxiety</b> - Excessive
+                    worry and nervousness / القلق والتوتر الزائد</label>
+                  <label><input type="checkbox" name="medicalConditions" value="panic_disorder"> <b>Panic Disorder</b> -
+                    Sudden severe anxiety attacks / نوبات الهلع</label>
+                  <label><input type="checkbox" name="medicalConditions" value="ocd"> <b>OCD</b> - Obsessive repetitive
+                    thoughts and behaviors / الوسواس القهري</label>
+                  <label><input type="checkbox" name="medicalConditions" value="bipolar_disorder"> <b>Bipolar
+                      Disorder</b> - Extreme mood changes / اضطراب ثنائي القطب</label>
+                  <label><input type="checkbox" name="medicalConditions" value="ptsd"> <b>PTSD</b> - Trauma-related
+                    stress disorder / اضطراب ما بعد الصدمة</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>5. Liver & Kidney / الكبد والكلى</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="chronic_kidney_disease"> <b>Chronic
+                      Kidney Disease</b> - Long-term kidney damage / مرض الكلى المزمن</label>
+                  <label><input type="checkbox" name="medicalConditions" value="dialysis"> <b>Dialysis</b> - Artificial
+                    blood filtration treatment / غسيل الكلى</label>
+                  <label><input type="checkbox" name="medicalConditions" value="chronic_liver_disease"> <b>Chronic Liver
+                      Disease</b> - Long-term liver damage / مرض الكبد المزمن</label>
+                  <label><input type="checkbox" name="medicalConditions" value="hepatitis"> <b>Hepatitis</b> - Liver
+                    inflammation / التهاب الكبد</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>6. Sleeping & Breathing / النوم والتنفس</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="obstructive_sleep_apnea"> <b>Obstructive
+                      Sleep Apnea</b> - Repeated breathing interruption during sleep / انقطاع التنفس أثناء النوم</label>
+                  <label><input type="checkbox" name="medicalConditions" value="chronic_lung_disease"> <b>Chronic Lung
+                      Disease</b> - Long-term breathing disease / مرض رئوي مزمن</label>
+                  <label><input type="checkbox" name="medicalConditions" value="copd"> <b>COPD</b> - Chronic airway
+                    blockage usually from smoking / انسداد رئوي مزمن غالباً بسبب التدخين</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>7. Immunity & Inflammatory / المناعة والالتهابات</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="rheumatoid_arthritis"> <b>Rheumatoid
+                      Arthritis</b> - Immune system attacking joints / التهاب المفاصل الروماتويدي</label>
+                  <label><input type="checkbox" name="medicalConditions" value="lupus"> <b>Lupus</b> - Autoimmune
+                    disease affecting multiple organs / مرض مناعي ذاتي متعدد الأعضاء</label>
+                  <label><input type="checkbox" name="medicalConditions" value="psoriasis"> <b>Psoriasis</b> - Chronic
+                    skin inflammation / الصدفية</label>
+                  <label><input type="checkbox" name="medicalConditions" value="inflammatory_bowel_disease">
+                    <b>Inflammatory Bowel Disease</b> - Chronic intestinal inflammation / التهابات مزمنة
+                    بالأمعاء</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>8. Oncology & Cancer Treatment / الأورام وعلاج السرطان</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="cancer_history"> <b>Cancer History</b> -
+                    Previous or current cancer diagnosis / تاريخ مرضي للسرطان</label>
+                  <label><input type="checkbox" name="medicalConditions" value="chemotherapy"> <b>Chemotherapy</b> -
+                    Cancer treatment using medications / العلاج الكيماوي</label>
+                  <label><input type="checkbox" name="medicalConditions" value="radiotherapy"> <b>Radiotherapy</b> -
+                    Cancer treatment using radiation / العلاج الإشعاعي</label>
+                </div>
+              </td>
+            </tr>
+            <tr>
+              <td>9. Surgeries / العمليات الجراحية</td>
+              <td>
+                <div class="condition-choice-list">
+                  <label><input type="checkbox" name="medicalConditions" value="pelvic_surgery"> <b>Pelvic Surgery</b> -
+                    Surgery involving pelvic organs / جراحة الحوض</label>
+                  <label><input type="checkbox" name="medicalConditions" value="penile_surgery"> <b>Penile Surgery</b> -
+                    Surgery involving the penis / جراحة العضو الذكري</label>
+                  <label><input type="checkbox" name="medicalConditions" value="prostate_surgery"> <b>Prostate
+                      Surgery</b> - Surgery involving the prostate gland / جراحة البروستاتا</label>
+                  <label><input type="checkbox" name="medicalConditions" value="testicular_surgery"> <b>Testicular
+                      Surgery</b> - Surgery involving the testicles / جراحة الخصية</label>
+                </div>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </section>
+
+    <section>
+      <h2>E. Lifestyle & Habits / خامسا: أسلوب الحياة والعادات</h2>
+
+      <label>Average sleep hours / متوسط ساعات النوم</label>
+      <input name="sleepHours">
+
+      <label>Type of sleep / طبيعة النوم</label>
+      <div class="radio-group">
+        <label><input type="radio" name="sleepType" value="night"> Night / ليلي</label>
+        <label><input type="radio" name="sleepType" value="day"> Day / نهاري</label>
+      </div>
+
+      <label>Sleep quality 1-10 / جودة النوم من ١ إلى ١٠</label>
+      <input type="number" min="1" max="10" name="sleepQuality">
+
+      <label>Snoring or witnessed apnea? / شخير أو انقطاع نفس أثناء النوم؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="snoring" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="snoring" value="no"> No / لا</label>
+      </div>
+
+      <label>Daytime fatigue / sleepiness? / خمول أو رغبة في النوم نهاراً؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="daytimeFatigue" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="daytimeFatigue" value="no"> No / لا</label>
+      </div>
+
+      <label>Exercise frequency per week / معدل ممارسة الرياضة أسبوعياً</label>
+      <input name="exerciseFrequency">
+
+      <label>Type of exercise / نوع الرياضة</label>
+      <div class="grid">
+        <label><input type="checkbox" name="exerciseType" value="resistance"> Resistance / مقاومة</label>
+        <label><input type="checkbox" name="exerciseType" value="cardio"> Cardio / كارديو</label>
+        <label><input type="checkbox" name="exerciseType" value="none"> None / لا يوجد</label>
+      </div>
+
+      <label>Sitting hours per day / عدد ساعات الجلوس يومياً</label>
+      <input name="sittingHours">
+
+      <label>Weight / الوزن</label>
+      <input name="weight">
+
+      <label>Height / الطول</label>
+      <input name="height">
+
+      <label>BMI / مؤشر كتلة الجسم</label>
+      <input name="bmi">
+
+      <label>Waist Circumference / محيط الخصر</label>
+      <input name="waist">
+
+      <label>Late night eating / الأكل في وقت متأخر من الليل</label>
+      <div class="radio-group">
+        <label><input type="radio" name="lateNightEating" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="lateNightEating" value="no"> No / لا</label>
+      </div>
+
+      <label>Smoking Status / حالة التدخين</label>
+      <div class="radio-group">
+        <label><input type="radio" name="smokingStatus" value="never"> Never / لم أدخن أبداً</label>
+        <label><input type="radio" name="smokingStatus" value="former"> Former / مدخن سابق</label>
+        <label><input type="radio" name="smokingStatus" value="current"> Current / مدخن حالي</label>
+      </div>
+
+      <label>Cigarettes per day / عدد السجائر يومياً</label>
+      <input name="cigarettesPerDay">
+
+      <label>Alcohol consumption / تناول الكحول</label>
+      <div class="radio-group">
+        <label><input type="radio" name="alcohol" value="none"> None / لا يوجد</label>
+        <label><input type="radio" name="alcohol" value="occasionally"> Occasionally / أحياناً</label>
+        <label><input type="radio" name="alcohol" value="frequent"> Frequent / متكرر</label>
+      </div>
+
+      <label>Recreational drug use / استخدام مواد ترفيهية</label>
+      <div class="radio-group">
+        <label><input type="radio" name="recreationalDrugUse" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="recreationalDrugUse" value="no"> No / لا</label>
+      </div>
+
+      <label>Pornography viewing frequency / معدل مشاهدة المحتوى الإباحي</label>
+      <div class="radio-group">
+        <label><input type="radio" name="pornographyFrequency" value="never"> Never / أبداً</label>
+        <label><input type="radio" name="pornographyFrequency" value="occasionally"> Occasionally / أحياناً</label>
+        <label><input type="radio" name="pornographyFrequency" value="frequent"> Frequent / متكرر</label>
+        <label><input type="radio" name="pornographyFrequency" value="daily"> Daily / يومياً</label>
+      </div>
+
+      <label>Masturbation / العادة السرية</label>
+      <div class="radio-group">
+        <label><input type="radio" name="masturbation" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="masturbation" value="no"> No / لا</label>
+      </div>
+
+      <label>Difficulty with partner but NOT with masturbation? / صعوبة مع الشريك وليس أثناء العادة السرية؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="partnerDifficultyOnly" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="partnerDifficultyOnly" value="no"> No / لا</label>
+      </div>
+    </section>
+
+    <section>
+      <h2>F. Psychological, Occupational & Recovery Metrics / سادسا: المقاييس النفسية والمهنية ومؤشرات التعافي</h2>
+
+      <label>Stress level 1-10 / مستوى الضغوط من ١ إلى ١٠</label>
+      <input type="number" min="1" max="10" name="stressLevel">
+
+      <label>Anxiety / Depression formal diagnosis? / تشخيص رسمي بقلق أو اكتئاب؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="anxietyDepression" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="anxietyDepression" value="no"> No / لا</label>
+      </div>
+
+      <label>Major relationship conflict? / خلافات حادة في العلاقة الزوجية؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="relationshipConflict" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="relationshipConflict" value="no"> No / لا</label>
+      </div>
+
+      <label>Performance anxiety during intercourse? / قلق الأداء أثناء العلاقة الحميمة؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="performanceAnxiety" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="performanceAnxiety" value="no"> No / لا</label>
+      </div>
+
+      <label>Mostly sedentary work? / طبيعة العمل مكتبية أو قليلة الحركة؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="sedentaryWork" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="sedentaryWork" value="no"> No / لا</label>
+      </div>
+
+      <label>Night shifts? / هل يتضمن العمل مناوبات ليلية؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="nightShifts" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="nightShifts" value="no"> No / لا</label>
+      </div>
+
+      <label>Heat / Toxin exposure at work? / التعرض للحرارة العالية أو السموم في العمل؟</label>
+      <div class="radio-group">
+        <label><input type="radio" name="heatToxinExposure" value="yes"> Yes / نعم</label>
+        <label><input type="radio" name="heatToxinExposure" value="no"> No / لا</label>
+      </div>
+
+      <label>General Energy level 1-10 / مستوى الطاقة العام من ١ إلى ١٠</label>
+      <input type="number" min="1" max="10" name="energyLevel">
+
+      <label>Libido / Sexual desire 1-10 / مستوى الرغبة الجنسية من ١ إلى ١٠</label>
+      <input type="number" min="1" max="10" name="libidoScore">
+
+      <label>Post-exercise / Daily recovery 1-10 / معدل الاستشفاء والتعافي البدني من ١ إلى ١٠</label>
+      <input type="number" min="1" max="10" name="recoveryScore">
+    </section>
+
+    <section>
+      <h2>G. Primary Complaints & Clinical Pathway Selector / سابعا: الشكوى الرئيسية وتحديد المسار العلاجي</h2>
+
+      <p>
+        Please check your main complaints.
+        <br>
+        برجاء تحديد الشكوى الأساسية والفرعية.
+      </p>
+
+      <div class="grid">
+        <label><input type="checkbox" name="complaints" value="erectile_dysfunction"> Erectile Dysfunction / ضعف
+          الانتصاب</label>
+        <label><input type="checkbox" name="complaints" value="premature_ejaculation"> Premature Ejaculation / القذف
+          السريع</label>
+        <label><input type="checkbox" name="complaints" value="delayed_ejaculation"> Delayed Ejaculation or Anorgasmia /
+          تأخر القذف أو عدم الوصول للنشوة</label>
+        <label><input type="checkbox" name="complaints" value="low_libido"> Low Libido / ضعف الرغبة</label>
+        <label><input type="checkbox" name="complaints" value="infertility"> Infertility / العقم وتأخر الإنجاب</label>
+        <label><input type="checkbox" name="complaints" value="peyronie"> Penile Curvature or Peyronie's / انحناء أو
+          اعوجاج العضو الذكري</label>
+        <label><input type="checkbox" name="complaints" value="size_concern"> Penile Size Concern / القلق بشأن حجم العضو
+          الذكري</label>
+        <label><input type="checkbox" name="complaints" value="low_testosterone"> Low Testosterone Symptoms / أعراض نقص
+          هرمون التستوستيرون</label>
+        <label><input type="checkbox" name="complaints" value="pelvic_pain"> Pelvic / Genital Pain / آلام الحوض والأعضاء
+          التناسلية</label>
+        <label><input type="checkbox" name="complaints" value="scrotal_pain"> Scrotal / Testicular Swelling or Pain /
+          آلام أو تورم الخصية والصفن</label>
+        <label><input type="checkbox" name="complaints" value="sti"> STI / Sexual Infection / الأمراض المنقولة
+          جنسياً</label>
+        <label><input type="checkbox" name="complaints" value="follow_up"> Follow-up Visit / زيارة متابعة دورية</label>
+      </div>
+    </section>
+
+    <section id="medicationUploadSection">
+      <h2>H. Medication & Investigation Uploads / رفع الأدوية والفحوصات</h2>
+
+      <div class="medical-scan-notice">
+        <strong>Clinical review required / يلزم مراجعة الطبيب.</strong>
+        The scan supports intake documentation only. Confirm every medication name, dose, allergy, warning, and
+        interaction before using it for care decisions.
+        <br>
+        المسح يساعد فقط في توثيق بيانات الاستبيان. يجب تأكيد اسم كل دواء والجرعة والحساسية والتحذيرات والتداخلات
+        الدوائية قبل الاعتماد عليها في أي قرار علاجي.
+      </div>
+
+      <label>Current Medications / الأدوية الحالية</label>
+      <textarea id="currentMedications" name="currentMedications"
+        placeholder="Example / مثال: Metformin 500 mg twice daily, Aspirin 81 mg daily"></textarea>
+
+      <label>Medical History Summary / ملخص التاريخ المرضي</label>
+      <textarea id="medicalHistory" name="medicalHistory"
+        placeholder="Relevant diagnoses, allergies, surgeries, kidney/liver disease, cardiac history / التشخيصات، الحساسية، العمليات، أمراض الكلى أو الكبد، تاريخ أمراض القلب"></textarea>
+
+      <label>Investigation / Lab Result Summary / ملخص الفحوصات والتحاليل</label>
+      <textarea id="investigationResults" name="investigationResults"
+        placeholder="Recent lab values, imaging findings, reports, or other investigation notes / نتائج التحاليل الحديثة، الأشعات، التقارير، أو أي ملاحظات فحص"></textarea>
+
+      <div class="upload-grid">
+        <div class="upload-field">
+          <label for="drugImageFiles">Drug / Package Photos / صور الأدوية أو العبوات</label>
+          <div class="upload-actions">
+            <input id="drugImageFiles" type="file" accept="image/*" multiple data-optional="true">
+            <button type="button" id="cameraTriggerBtn" class="secondary-button camera-trigger-btn">
+              <span class="camera-icon">📷</span> Take Photo / التقاط صورة
+            </button>
+          </div>
+          <div id="drugImagePreview" class="upload-preview" aria-live="polite"></div>
+        </div>
+
+        <div class="upload-field">
+          <label for="investigationFiles">Investigation Files / Photos / ملفات أو صور الفحوصات</label>
+          <input id="investigationFiles" type="file" accept="image/*,.pdf" multiple data-optional="true">
+          <div id="investigationFileList" class="upload-file-list" aria-live="polite"></div>
+        </div>
+      </div>
+
+      <button id="scanDrugsButton" class="secondary-button" type="button">Scan Uploads / فحص الملفات</button>
+      <p id="scanStatus" class="scan-status" role="status" aria-live="polite"></p>
+      <div id="scanResults" class="scan-results" hidden></div>
+
+      <input id="uploadedDrugAnalysis" type="hidden" name="uploadedDrugAnalysis">
+      <input id="uploadedFileSummary" type="hidden" name="uploadedFileSummary">
+    </section>
+
+    <section>
+      <h2>Physician Initial Assessment Notes / ملاحظات التقييم الأولي للطبيب (Optional / اختياري)</h2>
+      <textarea name="physicianNotes" data-optional="true"></textarea>
+    </section>
+
+    <section>
+      <h2>I. Marketing / Referral / ثامنا: التسويق والإحالة</h2>
+
+      <label>How did you know about us? / كيف تعرفت علينا؟</label>
+      <div class="grid">
+        <label><input type="checkbox" name="referral" value="google"> Google / جوجل</label>
+        <label><input type="checkbox" name="referral" value="facebook"> Facebook / فيسبوك</label>
+        <label><input type="checkbox" name="referral" value="instagram"> Instagram / انستجرام</label>
+        <label><input type="checkbox" name="referral" value="tiktok"> TikTok / تيك توك</label>
+        <label><input type="checkbox" name="referral" value="referral"> Referral / توصية</label>
+      </div>
+    </section>
+
+    <button id="submitButton" type="submit">Submit / إرسال</button>
+    <p id="submitStatus" class="submit-status" role="status" aria-live="polite"></p>
+  </form>
+
+  <!-- Camera Modal / نافذة الكاميرا -->
+  <div id="cameraModal" class="camera-modal" hidden>
+    <div class="camera-modal-content">
+      <div class="camera-modal-header">
+        <h3>Take Photo / التقاط صورة</h3>
+        <button type="button" id="cameraCloseBtn" class="camera-modal-close" aria-label="Close modal">&times;</button>
+      </div>
+
+      <div class="camera-viewport-container">
+        <video id="cameraVideo" autoplay playsinline muted></video>
+        <canvas id="cameraCanvas" style="display: none;"></canvas>
+        <div id="cameraFlash" class="camera-flash"></div>
+      </div>
+
+      <div class="camera-modal-controls">
+        <div class="camera-device-select-wrapper" id="cameraDeviceSelectWrapper" hidden>
+          <label for="cameraDeviceSelect">Select Camera / اختر الكاميرا:</label>
+          <select id="cameraDeviceSelect" class="camera-device-select">
+            <!-- Populated dynamically -->
+          </select>
+        </div>
+
+        <div class="camera-main-actions">
+          <button type="button" id="cameraCaptureBtn" class="camera-capture-btn" aria-label="Capture photo">
+            <span class="capture-inner-circle"></span>
+          </button>
+        </div>
+
+        <p id="cameraStatusMsg" class="camera-status-msg" role="status" aria-live="polite"></p>
       </div>
     </div>
+  </div>
 
-    <button id="scanDrugsButton" class="secondary-button" type="button">Scan Uploads / فحص الملفات</button>
-    <p id="scanStatus" class="scan-status" role="status" aria-live="polite"></p>
-    <div id="scanResults" class="scan-results" hidden></div>
-
-    <input id="uploadedDrugAnalysis" type="hidden" name="uploadedDrugAnalysis">
-    <input id="uploadedFileSummary" type="hidden" name="uploadedFileSummary">
-  </section>
-
-  <section>
-    <h2>Physician Initial Assessment Notes / ملاحظات التقييم الأولي للطبيب (Optional / اختياري)</h2>
-    <textarea name="physicianNotes" data-optional="true"></textarea>
-  </section>
-
-  <button id="submitButton" type="submit">Submit / إرسال</button>
-  <p id="submitStatus" class="submit-status" role="status" aria-live="polite"></p>
-</form>
-
-<script src="script.js"></script>
+  <script src="script.js"></script>
 </body>
+
 </html>

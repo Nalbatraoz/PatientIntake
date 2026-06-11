@@ -19,6 +19,18 @@ form {
 
 section { margin-bottom: 40px; }
 
+form.sections-locked section:not(.visit-type-section),
+form.sections-locked #submitButton,
+form.sections-locked #submitStatus {
+  display: none;
+}
+
+form.patient-unresolved section:not(.visit-type-section):not(.patient-status-section),
+form.patient-unresolved #submitButton,
+form.patient-unresolved #submitStatus {
+  display: none;
+}
+
 h1, h2 { color: #1f4e79; font-weight: 700; letter-spacing: 0; }
 h1 { margin: 0 0 8px; text-align: center; font-size: 28px; line-height: 1.25; }
 h2 {
@@ -41,6 +53,98 @@ label {
   margin: 6px 0 0;
   color: #5a6a7a;
   font-size: 13px;
+}
+
+.visit-type-section {
+  margin-bottom: 24px;
+}
+
+.patient-status-section {
+  margin-bottom: 24px;
+}
+
+.visit-type-options {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.visit-type-options label {
+  margin: 0;
+  cursor: pointer;
+}
+
+.visit-type-options input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.visit-type-card {
+  display: grid;
+  gap: 4px;
+  min-height: 94px;
+  padding: 18px 16px;
+  border: 1.5px solid #c5d0dc;
+  border-radius: 8px;
+  background: #f8fbff;
+  color: #1a2533;
+  text-align: center;
+  transition: border-color 0.15s, box-shadow 0.15s, background 0.15s;
+}
+
+.visit-type-card strong {
+  color: #1f4e79;
+  font-size: 24px;
+  line-height: 1.2;
+}
+
+.visit-type-card small {
+  color: #5a6a7a;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.visit-type-options input:focus + .visit-type-card {
+  border-color: #1f4e79;
+  box-shadow: 0 0 0 3px rgba(31, 78, 121, 0.1);
+}
+
+.visit-type-options input:checked + .visit-type-card {
+  border-color: #1f4e79;
+  background: #eef4fb;
+  box-shadow: 0 8px 22px rgba(31, 78, 121, 0.12);
+}
+
+.patient-code-panel {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border: 1.5px solid #d8e2ee;
+  border-radius: 8px;
+  background: #f8fbff;
+}
+
+.patient-code-search {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.patient-code-search input {
+  margin-top: 6px;
+}
+
+.patient-code-search .secondary-button {
+  margin-top: 0;
+}
+
+.patient-code-status {
+  min-height: 22px;
+  margin: 10px 0 0;
+  color: #1f4e79;
+  font-weight: 700;
 }
 
 input, select, textarea {
@@ -123,6 +227,27 @@ td { font-size: 14px; }
   color: #1f4e79;
   font-weight: 700;
   white-space: nowrap;
+}
+
+.condition-choice-list {
+  display: grid;
+  gap: 10px;
+}
+
+.condition-choice-list label {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0;
+  color: #1a2533;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+.condition-choice-list input {
+  width: auto;
+  margin: 4px 0 0;
+  flex: 0 0 auto;
 }
 
 .data-entry-table-wrapper {
@@ -526,9 +651,313 @@ button[type="submit"]:disabled {
   .field-wrapper { padding: 12px; }
   .upload-grid, .scan-summary, .scan-result-item dl { grid-template-columns: 1fr; }
   .secondary-button { width: 100%; min-height: 48px; }
+  .visit-type-options { grid-template-columns: 1fr; }
+  .visit-type-card { min-height: 76px; }
+  .patient-code-search { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 420px) {
   h1 { font-size: 19px; }
   h2 { font-size: 16px; }
+}
+
+/* Submissions page */
+.submissions-page main{max-width:1100px;margin:auto}
+.submissions-page h1{margin:0;color:#1f4e79;text-align:left}
+.submissions-page table{width:100%;border-collapse:collapse;table-layout:fixed}
+.submissions-page th,.submissions-page td{padding:8px;border:1px solid #d4dce7;text-align:left;vertical-align:top;word-break:break-word}
+.submissions-page th{width:25%;background:#eef4fb;color:#1f4e79;font-size:13px;text-transform:none}
+.submissions-page a{color:#1f4e79}
+.toolbar{display:flex;justify-content:space-between;align-items:center;gap:16px;margin-bottom:18px;flex-wrap:wrap}
+.ai-download-button{display:inline-block;margin:4px 0 10px;padding:10px 14px;border-radius:6px;background:#1f4e79;color:#fff;font-weight:700;text-decoration:none}
+.ai-download-button:hover{background:#163a5f}
+.submission,.empty{background:#fff;border-radius:8px}
+.submission{margin-bottom:28px;padding:24px;box-shadow:0 8px 24px rgba(15,23,42,.09)}
+.submission h2{margin:0 0 14px;color:#1f4e79;font-size:20px}
+.summary{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:10px;margin-bottom:18px;padding:12px;border-radius:6px;background:#f0f6ff}
+.submission-tabs{display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin:0 0 14px}
+.submission-tab{display:inline-flex;align-items:center;min-height:38px;padding:8px 14px;border:1px solid #c9d7e6;border-radius:6px;background:#eef4fb;color:#1f4e79;font:inherit;font-weight:700;font-size:13px;cursor:pointer}
+.submission-download{border-color:#1f4e79;background:#1f4e79;color:#fff;text-decoration:none}
+.submission-download:hover{background:#163a5f}
+.submission-inline-form{display:inline-block;margin:0}
+.submission-inline-form button{font-family:inherit}
+.submission-tab-active{border-color:#1f4e79;background:#dcecff}
+.submission-tab-muted{color:#6b7280;background:#f5f7fa;cursor:not-allowed}
+.submission-panel[hidden]{display:none}
+.form-details{margin-bottom:20px;border:1px solid #d4dce7;border-radius:6px;overflow:hidden}
+.form-details summary{padding:10px 14px;background:#eef4fb;color:#1f4e79;font-weight:700;cursor:pointer}
+.ai-report{border:2px solid #1f4e79;border-radius:8px;overflow:hidden}
+.ai-report-title{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 16px;background:#1f4e79;color:#fff;font-weight:700;font-size:15px;letter-spacing:0;cursor:pointer;list-style:none}
+.ai-report-title::-webkit-details-marker{display:none}
+.ai-report-title::after{content:"+";width:22px;height:22px;border:1px solid rgba(255,255,255,.55);border-radius:4px;text-align:center;line-height:20px;font-size:18px}
+.ai-report[open] .ai-report-title::after{content:"-"}
+.ai-report-content{background:#fff}
+.ai-section{padding:16px;border-bottom:1px solid #d4dce7}
+.ai-section:last-child{border-bottom:0}
+.ai-section-title{margin-bottom:10px;color:#1f4e79;font-weight:700;font-size:15px}
+.ai-status{display:inline-block;margin-bottom:12px;padding:5px 12px;border-radius:4px;color:#fff;font-size:12px;font-weight:700}
+.ai-missing{padding:12px;color:#888;font-style:italic}
+.ai-summary-box,.ai-decision,.ai-flag,.ai-ok{margin-bottom:10px;padding:10px 14px;border-radius:0 6px 6px 0}
+.ai-summary-box{border-left:4px solid #1f4e79;background:#f7fbff}
+.ai-summary-box p{margin:0 0 8px;line-height:1.6}
+.ai-badge{display:inline-block;padding:3px 10px;border-radius:8px;color:#fff;font-size:12px;font-weight:700}
+.ai-decision{border-left:4px solid #e65100;background:#fffdf0;line-height:1.7}
+.ai-flag{border-left:4px solid #b71c1c;background:#fff3f3;color:#7f0000;font-size:14px}
+.ai-ok{border-left:4px solid #2e7d32;background:#f0fff4;color:#1b5e20;font-size:14px}
+.ai-list{margin-bottom:12px}
+.ai-list ul{margin:6px 0 0;padding-left:20px}
+.ai-list li{margin-bottom:4px;font-size:14px;line-height:1.55}
+.ai-score,.pubmed-meta{color:#666;font-size:12px}
+.pubmed-card{margin-top:8px;padding:10px 14px;border:1px solid #c9dff5;border-radius:6px;background:#f7fbff}
+.pubmed-title{margin-bottom:4px;font-weight:700;font-size:14px}
+.pubmed-abstract{color:#333;font-size:13px;line-height:1.55}
+.empty{padding:22px}
+
+@media (max-width:760px){
+  .submissions-page{padding:16px;background:#f4f7fb}
+  .submissions-page h1{font-size:22px}
+  .submissions-page table,.submissions-page tbody,.submissions-page tr,.submissions-page th,.submissions-page td{display:block;width:100%}
+  .submissions-page tr{border-bottom:1px solid #d4dce7}
+  .submissions-page th{border-bottom:0}
+  .submission{padding:16px}
+}
+
+/* Clinical agent test page */
+.clinical-test-page{padding:24px;background:#f6f8fb;color:#172033}
+.clinical-test-page main{max-width:980px;margin:auto;display:grid;gap:18px}
+.clinical-test-page h1,.clinical-test-page h2,.clinical-test-page h3{margin:0 0 8px;color:#1f4e79;text-align:left}
+.clinical-test-page h1{font-size:28px}
+.clinical-test-page h2{font-size:21px}
+.clinical-test-page h3{font-size:17px}
+.clinical-test-page form,.clinical-test-page .result-panel,.clinical-test-page details{padding:18px;border:1px solid #d8e0ea;border-radius:8px;background:#fff}
+.clinical-test-page label{display:grid;gap:6px;margin-bottom:14px;font-weight:700}
+.clinical-test-page textarea{min-height:84px;resize:vertical}
+.clinical-test-page button{padding:10px 14px;border:0;border-radius:6px;background:#1f4e79;color:#fff;font:inherit;font-weight:700;cursor:pointer}
+.clinical-test-page .result-panel{display:grid;gap:14px}
+.clinical-test-page .section{padding-top:12px;border-top:1px solid #e3e9f0}
+.clinical-test-page .section:first-child{padding-top:0;border-top:0}
+.clinical-test-page ul{margin:8px 0 0 20px;padding:0}
+.clinical-test-page li{margin-bottom:6px}
+.clinical-test-page .flag,.clinical-test-page .ok{padding:10px;border-left:4px solid}
+.clinical-test-page .flag{border-color:#b42318;background:#fff3f0}
+.clinical-test-page .ok{border-color:#18794e;background:#eefaf3}
+.clinical-test-page .muted{color:#5f6b7a}
+.clinical-test-page .passage,.clinical-test-page pre{overflow:auto;white-space:pre-wrap}
+.clinical-test-page .passage{max-height:220px;padding:10px;border:1px solid #e3e9f0;border-radius:6px;background:#fbfcfe}
+.clinical-test-page pre{min-height:220px}
+}
+
+/* Camera capture module styles */
+.upload-actions {
+  display: flex;
+  gap: 12px;
+  align-items: stretch;
+  margin-top: 6px;
+}
+.upload-actions input[type="file"] {
+  margin-top: 0;
+  flex: 1;
+}
+.upload-actions .camera-trigger-btn {
+  margin-top: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+  flex-shrink: 0;
+  padding: 10px 16px;
+}
+
+/* Modal layout */
+.camera-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.camera-modal[hidden] {
+  display: none;
+}
+.camera-modal-content {
+  width: min(540px, 100%);
+  background: #1e293b;
+  border-radius: 16px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Modal header */
+.camera-modal-header {
+  padding: 16px 20px;
+  background: #0f172a;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.camera-modal-header h3 {
+  margin: 0;
+  color: #f8fafc;
+  font-size: 18px;
+  font-weight: 600;
+}
+.camera-modal-close {
+  background: none;
+  border: 0;
+  color: #94a3b8;
+  font-size: 28px;
+  cursor: pointer;
+  padding: 0;
+  line-height: 1;
+  transition: color 0.2s;
+}
+.camera-modal-close:hover {
+  color: #f1f5f9;
+}
+
+/* Video viewport container */
+.camera-viewport-container {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: #000;
+  overflow: hidden;
+}
+#cameraVideo {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.camera-flash {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.15s ease-out;
+}
+.camera-flash.flash-active {
+  opacity: 1;
+  transition: none; /* Instant white out */
+}
+
+/* Camera modal controls */
+.camera-modal-controls {
+  padding: 20px;
+  background: #0f172a;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+}
+
+/* Select Camera styling */
+.camera-device-select-wrapper {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.camera-device-select-wrapper label {
+  color: #94a3b8;
+  font-size: 13px;
+  font-weight: 600;
+  margin-top: 0;
+  white-space: nowrap;
+}
+.camera-device-select {
+  background: #1e293b;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #f8fafc;
+  font-size: 14px;
+  padding: 8px 12px;
+  border-radius: 6px;
+  width: 100%;
+  margin-top: 0;
+}
+.camera-device-select:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.25);
+}
+
+/* Capture Shutter Button */
+.camera-main-actions {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 100%;
+}
+.camera-capture-btn {
+  width: 72px;
+  height: 72px;
+  border-radius: 50%;
+  background: #fff;
+  border: 4px solid #94a3b8;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  transition: transform 0.1s ease, border-color 0.2s;
+  outline: none;
+}
+.camera-capture-btn:hover {
+  border-color: #f1f5f9;
+}
+.camera-capture-btn:active {
+  transform: scale(0.92);
+}
+.capture-inner-circle {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  background: #dc2626;
+  display: block;
+  transition: background-color 0.2s;
+}
+.camera-capture-btn:hover .capture-inner-circle {
+  background: #ef4444;
+}
+
+/* Status message */
+.camera-status-msg {
+  margin: 0;
+  font-size: 13px;
+  color: #10b981; /* emerald/green for success */
+  font-weight: 600;
+  text-align: center;
+  min-height: 20px;
+}
+
+/* Mobile adjustments */
+@media (max-width: 760px) {
+  .upload-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .upload-actions .camera-trigger-btn {
+    width: 100%;
+    justify-content: center;
+  }
+  .camera-modal {
+    padding: 0;
+    align-items: flex-end;
+  }
+  .camera-modal-content {
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+    max-height: 90vh;
+  }
+  .camera-viewport-container {
+    aspect-ratio: 1 / 1;
+  }
 }

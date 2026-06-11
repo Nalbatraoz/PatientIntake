@@ -29,21 +29,16 @@ from nodes.agents import (
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-IS_VERCEL = bool(os.environ.get("VERCEL"))
-DB_PATH = os.environ.get("DB_PATH") or (
-    os.path.join("/tmp", "intake.db") if IS_VERCEL else os.path.join(BASE_DIR, "intake.db")
-)
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or (
-    os.path.join("/tmp", "uploads") if IS_VERCEL else os.path.join(BASE_DIR, "uploads")
-)
-STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND") or ("vercel_tmp" if IS_VERCEL else "local_filesystem")
-STORAGE_IS_EPHEMERAL = STORAGE_BACKEND == "vercel_tmp"
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
+STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND") or "local_filesystem"
+STORAGE_IS_EPHEMERAL = False
 
 
 def deployment_info():
     """Return storage/runtime metadata useful for deployed clients and admin routes."""
     return {
-        "platform": "vercel" if IS_VERCEL else "local",
+        "platform": "local",
         "storage_backend": STORAGE_BACKEND,
         "storage_ephemeral": STORAGE_IS_EPHEMERAL,
         "database_path": DB_PATH,
@@ -123,6 +118,57 @@ def get_db_connection():
     """)
     conn.commit()
     return conn
+
+def generate_next_patient_code():
+    """Generate the next available patient code (e.g., INT-1, INT-2, etc.)."""
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT MAX(id) FROM intake_forms")
+    result = cur.fetchone()
+    conn.close()
+    
+    max_id = result[0] if result and result[0] else 0
+    next_id = max_id + 1
+    return f"INT-{next_id}"
+
+def get_patient_by_code(code):
+    """Look up a patient record by their patient code (e.g., INT-1)."""
+    if not code or not isinstance(code, str):
+        return None
+    
+    try:
+        # Extract the number from the code (e.g., "INT-1" -> 1)
+        parts = code.strip().upper().split("-")
+        if len(parts) != 2 or parts[0] != "INT":
+            return None
+        
+        patient_id = int(parts[1])
+    except (ValueError, IndexError):
+        return None
+    
+    conn = get_db_connection()
+    cur = conn.cursor()
+    cur.execute("SELECT id, full_name, age, mobile, email, form_data FROM intake_forms WHERE id = ?", (patient_id,))
+    row = cur.fetchone()
+    conn.close()
+    
+    if not row:
+        return None
+    
+    try:
+        form_data = json.loads(row["form_data"] or "{}")
+    except json.JSONDecodeError:
+        form_data = {}
+    
+    return {
+        "id": row["id"],
+        "codeNo": f"INT-{row['id']}",
+        "full_name": row["full_name"],
+        "age": row["age"],
+        "mobile": row["mobile"],
+        "email": row["email"],
+        "form_data": form_data,
+    }
 
 def safe_json_loads(value, fallback=None):
     """Parse JSON strings safely while returning a fallback for empty or invalid values."""

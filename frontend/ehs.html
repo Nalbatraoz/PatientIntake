@@ -1,0 +1,137 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EHS Questionnaire / مقياس صلابة الانتصاب</title>
+    <link rel="stylesheet" href="ehs.css">
+</head>
+<body>
+<div class="container">
+    <form id="ehsForm">
+        <div id="step-1" class="step-container card">
+            <header class="cover-header">
+                <h1>THE ERECTION HARDNESS SCALE</h1>
+                <p class="subtitle">EHS Assessment Form / استبيان مقياس صلابة الانتصاب</p>
+            </header>
+
+            <section class="cover-section">
+                <h2>Purpose / الهدف</h2>
+                <p>This short scale helps document erection hardness now, both without treatment and with intervention.</p>
+                <p dir="rtl" class="ar-text">يساعد هذا المقياس القصير على توثيق درجة صلابة الانتصاب حالياً، سواء بدون علاج أو مع وجود تدخل.</p>
+            </section>
+
+            <section class="cover-section">
+                <h2>Instructions / التعليمات</h2>
+                <ul class="guidelines-list">
+                    <li>Select one hardness level from 0 to 4 for each section.
+                        <br><span dir="rtl" class="ar-inline">اختر درجة واحدة من 0 إلى 4 لكل قسم.</span>
+                    </li>
+                    <li>Answer once for your current erection hardness without intervention.
+                        <br><span dir="rtl" class="ar-inline">أجب مرة عن صلابة الانتصاب الحالية بدون تدخل.</span>
+                    </li>
+                    <li>Answer again for your current erection hardness with intervention such as medication, injection, or pump.
+                        <br><span dir="rtl" class="ar-inline">ثم أجب مرة أخرى عن صلابة الانتصاب الحالية مع تدخل مثل الدواء أو الحقن أو المضخة.</span>
+                    </li>
+                </ul>
+            </section>
+
+            <div class="step-actions">
+                <button type="button" id="startBtn" class="btn-primary">Start Questionnaire / بدء الاستبيان &rarr;</button>
+            </div>
+        </div>
+
+        <div id="step-2" class="step-container hidden">
+            <section class="card patient-info-card">
+                <h3>Patient Info / معلومات المريض</h3>
+                <div class="patient-grid">
+                    <div>
+                        <span class="info-label">Name / الاسم:</span>
+                        <input type="text" name="name" readonly required class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">DOB / تاريخ الميلاد:</span>
+                        <input type="date" name="dob" readonly class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">Age / العمر:</span>
+                        <input type="number" name="age" readonly required class="flat-input">
+                    </div>
+                    <div>
+                        <span class="info-label">Phone / الهاتف:</span>
+                        <input type="text" name="phone" readonly required class="flat-input">
+                    </div>
+                </div>
+                <div class="patient-address-row">
+                    <span class="info-label">Address / العنوان:</span>
+                    <input type="text" name="address" readonly class="flat-input">
+                </div>
+            </section>
+
+            <section class="card definitions-card compact">
+                <div class="weeks-instruction">
+                    <h3>SELECT THE CURRENT SCORE / اختر الدرجة الحالية</h3>
+                    <p class="pulse-text">ONE ANSWER PER SECTION / إجابة واحدة لكل قسم</p>
+                </div>
+            </section>
+
+            <section class="scale-card">
+                <h2>Hardness Scale / مقياس الصلابة</h2>
+                <div class="scale-table" id="scaleTable"></div>
+            </section>
+
+            <section class="card score-section">
+                <h3>Current score without intervention / الدرجة الحالية بدون تدخل</h3>
+                <p class="section-note">Examples: no Viagra, Cialis, injections, or pump. / أمثلة: بدون فياجرا أو سياليس أو حقن أو مضخة.</p>
+                <div id="withoutInterventionOptions" class="score-options"></div>
+            </section>
+
+            <section class="card score-section">
+                <h3>Current score with intervention / الدرجة الحالية مع تدخل</h3>
+                <p class="section-note">Examples: with Viagra, Cialis, injections, or pump. / أمثلة: مع فياجرا أو سياليس أو حقن أو مضخة.</p>
+                <div id="withInterventionOptions" class="score-options"></div>
+            </section>
+
+            <section class="card info-block">
+                <p>The surveys you complete help track progress and support follow-up discussion with the clinician.</p>
+                <p dir="rtl" class="ar-text">تساعد الاستبيانات التي تكملها في متابعة التحسن ودعم النقاش اللاحق مع الطبيب.</p>
+            </section>
+
+            <div class="step-actions">
+                <button type="button" id="backToStep1" class="btn-secondary">&larr; Back / العودة</button>
+                <button type="submit" id="ehsSubmitBtn" class="btn-primary btn-submit">Submit Questionnaire / إرسال الاستبيان &check;</button>
+            </div>
+        </div>
+    </form>
+
+    <div id="results" class="hidden results-card">
+        <h2>Results Summary / ملخص النتائج</h2>
+        <div class="results-grid-summary">
+            <div class="score-display">
+                <span class="score-label">Without Intervention / بدون تدخل:</span>
+                <span id="withoutScore" class="score-value">0 / 4</span>
+            </div>
+            <div class="score-display">
+                <span class="score-label">With Intervention / مع تدخل:</span>
+                <span id="withScore" class="score-value">0 / 4</span>
+            </div>
+            <div class="severity-container">
+                <span class="severity-label">Change / التغير:</span>
+                <span id="assessment" class="severity-badge">Pending</span>
+            </div>
+        </div>
+
+        <div class="score-interpretation-box">
+            <h3>Scale Reference / مرجع المقياس</h3>
+            <div class="scale-table compact" id="resultsScaleTable"></div>
+        </div>
+
+        <div class="results-actions">
+            <a id="continueBtn" href="/" class="button-link">Finish / إنهاء</a>
+        </div>
+    </div>
+</div>
+
+<script src="ehs.js"></script>
+</body>
+</html>

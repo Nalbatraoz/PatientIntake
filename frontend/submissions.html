@@ -5,18 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Submitted Forms</title>
   <link rel="stylesheet" href="/submissions.css">
+  <link rel="stylesheet" href="/notifications.css">
 </head>
 <body>
   <main>
     <div class="toolbar">
       <h1>Submitted Forms</h1>
       <a href="/">Back to form</a>
+      <!-- Bell button is injected here by notifications.js -->
     </div>
+
     {% if not submissions %}
       <p class="empty">No forms submitted yet.</p>
     {% else %}
       {% for submission in submissions %}
-        <article class="submission">
+        <article class="submission" id="submission-{{ submission.id }}">
           <h2>Submission #{{ submission.id }}</h2>
           <div class="summary">
             <span><strong>Name:</strong> {{ submission.full_name }}</span>
@@ -35,6 +38,26 @@
             {% endif %}
             <button class="submission-tab" type="button" data-panel-target="{{ submission.form_panel_id }}" aria-controls="{{ submission.form_panel_id }}" aria-expanded="false">Patient Form Answers</button>
             <button class="submission-tab" type="button" data-panel-target="{{ submission.ai_panel_id }}" aria-controls="{{ submission.ai_panel_id }}" aria-expanded="false">AI Clinical Report</button>
+            {% if submission.iief_data %}
+              <button class="submission-tab" type="button" data-panel-target="{{ submission.iief_panel_id }}" aria-controls="{{ submission.iief_panel_id }}" aria-expanded="false">IIEF Questionnaire</button>
+            {% else %}
+              <span class="submission-tab submission-tab-muted">No IIEF Data</span>
+            {% endif %}
+            {% if submission.pedt_data %}
+              <button class="submission-tab" type="button" data-panel-target="{{ submission.pedt_panel_id }}" aria-controls="{{ submission.pedt_panel_id }}" aria-expanded="false">PEDT Questionnaire</button>
+            {% else %}
+              <span class="submission-tab submission-tab-muted">No PEDT Data</span>
+            {% endif %}
+            {% if submission.low_libido_data %}
+              <button class="submission-tab" type="button" data-panel-target="{{ submission.low_libido_panel_id }}" aria-controls="{{ submission.low_libido_panel_id }}" aria-expanded="false">Low Libido Questionnaire</button>
+            {% else %}
+              <span class="submission-tab submission-tab-muted">No Low Libido Data</span>
+            {% endif %}
+            {% if submission.ehs_data %}
+              <button class="submission-tab" type="button" data-panel-target="{{ submission.ehs_panel_id }}" aria-controls="{{ submission.ehs_panel_id }}" aria-expanded="false">Erection Hardness Scale</button>
+            {% else %}
+              <span class="submission-tab submission-tab-muted">No EHS Data</span>
+            {% endif %}
           </div>
 
           <div id="{{ submission.form_panel_id }}" class="submission-panel form-details" hidden>
@@ -69,10 +92,243 @@
               {{ submission.ai_html|safe }}
             </div>
           </div>
+
+          {% if submission.iief_data %}
+          <div id="{{ submission.iief_panel_id }}" class="submission-panel iief-details" hidden>
+            <div class="iief-summary-header">
+              <h3>IIEF-15 Questionnaire Results / نتائج استبيان مؤشر الانتصاب</h3>
+              <div class="iief-main-stats">
+                <div class="stat-badge">
+                  <strong>Total Score / النتيجة الإجمالية:</strong>
+                  <span>{{ submission.iief_data.scores.total }} / 75</span>
+                </div>
+                <div class="stat-badge severity-{{ submission.iief_data.severity.cssClass }}">
+                  <strong>Severity / التصنيف:</strong>
+                  <span>{{ submission.iief_data.severity.en }} / {{ submission.iief_data.severity.ar }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iief-domain-scores">
+              <h4>Domain Breakdown / تفاصيل المجالات</h4>
+              <div class="domain-scores-grid">
+                <div class="domain-score-card">
+                  <strong>Erectile Function / وظيفة الانتصاب:</strong>
+                  <span>{{ submission.iief_data.scores.ef }} / 30</span>
+                </div>
+                <div class="domain-score-card">
+                  <strong>Orgasmic Function / وظيفة القذف والنشوة:</strong>
+                  <span>{{ submission.iief_data.scores.of }} / 10</span>
+                </div>
+                <div class="domain-score-card">
+                  <strong>Sexual Desire / الرغبة الجنسية:</strong>
+                  <span>{{ submission.iief_data.scores.sd }} / 10</span>
+                </div>
+                <div class="domain-score-card">
+                  <strong>Intercourse Satisfaction / الرضا عن الجماع:</strong>
+                  <span>{{ submission.iief_data.scores.is }} / 15</span>
+                </div>
+                <div class="domain-score-card">
+                  <strong>Overall Satisfaction / الرضا العام:</strong>
+                  <span>{{ submission.iief_data.scores.os }} / 10</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iief-answers-table">
+              <h4>Questions & Answers / الأسئلة والإجابات</h4>
+              <table style="table-layout: auto;">
+                <thead>
+                  <tr>
+                    <th>Q#</th>
+                    <th>Question (English / Arabic)</th>
+                    <th style="text-align: center;">Score / الدرجة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set q_texts = {
+                    "q1": "How often were you able to get an erection during sexual activity? / كم مرة تمكنت من الحصول على انتصاب أثناء النشاط الجنسي؟",
+                    "q2": "When you had erections with sexual stimulation, how often were your erections hard enough for penetration? / عندما حصلت على انتصاب مع الإثارة الجنسية، كم مرة كان الانتصاب صلباً بما يكفي للإيلاج؟",
+                    "q3": "When you attempted sexual intercourse, how often were you able to penetrate (enter) your partner? / عندما حاولت الجماع، كم مرة تمكنت من إيلاج العضو لدى شريكتك؟",
+                    "q4": "During sexual intercourse, how often were you able to maintain your erection after you had penetrated (entered) your partner? / أثناء الجماع، كم مرة تمكنت من الحفاظ على الانتصاب بعد إيلاج العضو لدى شريكتك؟",
+                    "q5": "During sexual intercourse, how difficult was it to maintain your erection to completion of intercourse? / أثناء الجماع، كم كانت درجة الصعوبة في الحفاظ على الانتصاب حتى إتمام العملية الجنسية؟",
+                    "q6": "How many times have you attempted sexual intercourse? / كم عدد المرات التي حاولت فيها الجماع؟",
+                    "q7": "When you attempted sexual intercourse, how often was it satisfactory for you? / عندما حاولت الجماع، كم مرة كان الأمر مرضياً وممتعاً بالنسبة لك؟",
+                    "q8": "How much have you enjoyed sexual intercourse? / ما هي درجة استمتاعك بالجماع؟",
+                    "q9": "When you had sexual stimulation or intercourse, how often did you ejaculate? / عندما كان لديك إثارة جنسية أو جماع، كم مرة قذفت؟",
+                    "q10": "When you had sexual stimulation or intercourse, how often did you have the feeling of orgasm or climax? / عندما كان لديك إثارة جنسية أو جماع، كم مرة شعرت بالرعشة الجنسية (النشوة)؟",
+                    "q11": "How often have you felt sexual desire? / كم مرة شعرت بالرغبة الجنسية؟",
+                    "q12": "How would you rate your level of sexual desire? / كيف تقيم مستوى رغبتك الجنسية؟",
+                    "q13": "How satisfied have you been with your overall sex life? / ما مدى رضاك عن حياتك الجنسية بشكل عام؟",
+                    "q14": "How satisfied have you been with your sexual relationship with your partner? / ما مدى رضاك عن علاقتك الجنسية مع شريكتك؟",
+                    "q15": "How do you rate your confidence that you could get and keep an erection? / كيف تقيم مستوى ثقتك في قدرتك على الحصول على انتصاب والحفاظ عليه؟"
+                  } %}
+                  {% for q_id, q_text in q_texts.items() %}
+                    <tr>
+                      <td style="font-weight: bold; width: 50px;">{{ q_id|upper }}</td>
+                      <td>{{ q_text }}</td>
+                      <td style="font-weight: bold; width: 80px; text-align: center;">{{ submission.iief_data.answers[q_id] }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+          
+          {% if submission.pedt_data %}
+          <div id="{{ submission.pedt_panel_id }}" class="submission-panel iief-details" hidden>
+            <div class="iief-summary-header">
+              <h3>PEDT Questionnaire Results / نتائج استبيان أداة تشخيص سرعة القذف</h3>
+              <div class="iief-main-stats">
+                <div class="stat-badge">
+                  <strong>Total Score / النتيجة الإجمالية:</strong>
+                  <span>{{ submission.pedt_data.scores.total }} / 20</span>
+                </div>
+                <div class="stat-badge severity-{{ submission.pedt_data.severity.cssClass }}">
+                  <strong>Severity / التصنيف:</strong>
+                  <span>{{ submission.pedt_data.severity.en }} / {{ submission.pedt_data.severity.ar }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iief-answers-table">
+              <h4>Questions & Answers / الأسئلة والإجابات</h4>
+              <table style="table-layout: auto;">
+                <thead>
+                  <tr>
+                    <th>Q#</th>
+                    <th>Question (English / Arabic)</th>
+                    <th style="text-align: center;">Score / الدرجة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set pedt_q_texts = {
+                    "q1": "How difficult is it for you to delay ejaculation? / ما مدى صعوبة تأخير القذف بالنسبة لك؟",
+                    "q2": "Do you ejaculate before you want to? / هل تقذف قبل أن ترغب في ذلك؟",
+                    "q3": "Do you ejaculate with very little stimulation? / هل تقذف مع إثارة بسيطة جداً؟",
+                    "q4": "Do you feel frustrated because of ejaculating before you want to? / هل تشعر بالإحباط بسبب القذف قبل أن ترغب في ذلك؟",
+                    "q5": "How concerned are you that your time to ejaculation leaves your partner unfulfilled? / ما مدى قلقك من أن وقت القذف لديك يترك شريكتك غير راضية؟"
+                  } %}
+                  {% for q_id, q_text in pedt_q_texts.items() %}
+                    <tr>
+                      <td style="font-weight: bold; width: 50px;">{{ q_id|upper }}</td>
+                      <td>{{ q_text }}</td>
+                      <td style="font-weight: bold; width: 80px; text-align: center;">{{ submission.pedt_data.answers[q_id] }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if submission.low_libido_data %}
+          <div id="{{ submission.low_libido_panel_id }}" class="submission-panel iief-details" hidden>
+            <div class="iief-summary-header">
+              <h3>Low Libido Questionnaire Results / نتائج استبيان انخفاض الرغبة الجنسية</h3>
+              <div class="iief-main-stats">
+                <div class="stat-badge">
+                  <strong>Total Score / النتيجة الإجمالية:</strong>
+                  <span>{{ submission.low_libido_data.scores.total }} / 40</span>
+                </div>
+                <div class="stat-badge severity-{{ submission.low_libido_data.severity.cssClass }}">
+                  <strong>Severity / التصنيف:</strong>
+                  <span>{{ submission.low_libido_data.severity.en }} / {{ submission.low_libido_data.severity.ar }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iief-answers-table">
+              <h4>Questions & Answers / الأسئلة والإجابات</h4>
+              <table style="table-layout: auto;">
+                <thead>
+                  <tr>
+                    <th>Q#</th>
+                    <th>Question (English / Arabic)</th>
+                    <th style="text-align: center;">Score / الدرجة</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set low_libido_q_texts = {
+                    "q1": "How often did you feel sexual desire? / كم مرة شعرت برغبة جنسية؟",
+                    "q2": "How often did you have sexual thoughts or fantasies? / كم مرة راودتك أفكار أو خيالات جنسية؟",
+                    "q3": "How interested were you in having sex? / ما مدى اهتمامك بممارسة الجنس؟",
+                    "q4": "If a suitable sexual opportunity arose, how likely would you be to participate? / إذا أتيحت فرصة جنسية مناسبة، ما احتمالية رغبتك في المشاركة؟",
+                    "q5": "Do you feel your sexual desire is lower than before? / هل تشعر أن رغبتك الجنسية أقل مما كانت عليه سابقاً؟",
+                    "q6": "Does this cause you distress or discomfort? / هل يسبب لك ذلك ضيقاً أو انزعاجاً؟",
+                    "q7": "Does it affect your marital relationship? / هل يؤثر على علاقتك الزوجية؟",
+                    "q8": "How often do you initiate sexual activity? / هل تبادر بالعلاقة الجنسية؟",
+                    "q9": "Do you enjoy sexual stimulation? / هل تستمتع بالمثيرات الجنسية (صور، خيال، لمس)؟",
+                    "q10": "How do you rate your current sexual desire compared with men your age? / كيف تقيم رغبتك الجنسية الحالية مقارنة برجال في مثل عمرك؟"
+                  } %}
+                  {% for q_id, q_text in low_libido_q_texts.items() %}
+                    <tr>
+                      <td style="font-weight: bold; width: 50px;">{{ q_id|upper }}</td>
+                      <td>{{ q_text }}</td>
+                      <td style="font-weight: bold; width: 80px; text-align: center;">{{ submission.low_libido_data.answers[q_id] }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
+
+          {% if submission.ehs_data %}
+          <div id="{{ submission.ehs_panel_id }}" class="submission-panel iief-details" hidden>
+            <div class="iief-summary-header">
+              <h3>Erection Hardness Scale Results / نتائج مقياس صلابة الانتصاب</h3>
+              <div class="iief-main-stats">
+                <div class="stat-badge">
+                  <strong>Without Intervention / بدون تدخل:</strong>
+                  <span>{{ submission.ehs_data.scores.without_intervention }} / 4</span>
+                </div>
+                <div class="stat-badge">
+                  <strong>With Intervention / مع تدخل:</strong>
+                  <span>{{ submission.ehs_data.scores.with_intervention }} / 4</span>
+                </div>
+                <div class="stat-badge severity-{{ submission.ehs_data.severity.cssClass }}">
+                  <strong>Change / التغير:</strong>
+                  <span>{{ submission.ehs_data.severity.en }} / {{ submission.ehs_data.severity.ar }}</span>
+                </div>
+              </div>
+            </div>
+
+            <div class="iief-answers-table">
+              <h4>Scale & Responses / المقياس والإجابات</h4>
+              <table style="table-layout: auto;">
+                <thead>
+                  <tr>
+                    <th>Score</th>
+                    <th>Description</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {% set ehs_scale = {
+                    0: "Penis does not enlarge / القضيب لا يزداد حجمه",
+                    1: "Penis is larger, but not hard / القضيب أكبر لكن ليس صلباً",
+                    2: "Penis is hard, but not hard enough for penetration / القضيب صلب لكنه غير كافٍ للإيلاج",
+                    3: "Penis is hard enough for penetration, but not completely hard / القضيب صلب بما يكفي للإيلاج لكنه ليس صلباً تماماً",
+                    4: "Penis is completely hard and fully rigid / القضيب صلب تماماً ومتماسك"
+                  } %}
+                  {% for score, description in ehs_scale.items() %}
+                    <tr>
+                      <td style="font-weight: bold; width: 80px; text-align: center;">{{ score }}</td>
+                      <td>{{ description }}</td>
+                    </tr>
+                  {% endfor %}
+                </tbody>
+              </table>
+            </div>
+          </div>
+          {% endif %}
         </article>
       {% endfor %}
     {% endif %}
   </main>
+
   <script src="/submissions.js"></script>
+  <script src="/notifications.js"></script>
 </body>
 </html>

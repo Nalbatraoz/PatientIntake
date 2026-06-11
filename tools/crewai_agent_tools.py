@@ -47,6 +47,7 @@ def run_crewai_json_agent(
     max_tokens=4096,
     timeout=45,
     label="CrewAI agent",
+    tools=None,
 ):
     """Run one CrewAI agent/task and parse the JSON object it returns."""
     _configure_google_key(api_key)
@@ -64,7 +65,8 @@ def run_crewai_json_agent(
         backstory=backstory,
         llm=llm,
         allow_delegation=False,
-        verbose=False,
+        verbose=True,
+        tools=tools or [],
     )
     task = Task(
         description=task_prompt,
@@ -75,7 +77,7 @@ def run_crewai_json_agent(
         agents=[agent],
         tasks=[task],
         process=Process.sequential,
-        verbose=False,
+        verbose=True,
     )
     try:
         result = crew.kickoff()
