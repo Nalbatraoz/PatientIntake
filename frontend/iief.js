@@ -506,7 +506,7 @@
         };
 
         try {
-            const response = await fetch("/submit-iief", {
+            const response = await fetch("submit-iief", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

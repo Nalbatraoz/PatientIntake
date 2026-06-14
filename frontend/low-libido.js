@@ -404,7 +404,7 @@
         };
 
         try {
-            const response = await fetch("/submit-low-libido", {
+            const response = await fetch("submit-low-libido", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

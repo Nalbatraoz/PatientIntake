@@ -346,7 +346,7 @@
         };
 
         try {
-            const response = await fetch("/submit-pedt", {
+            const response = await fetch("submit-pedt", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({

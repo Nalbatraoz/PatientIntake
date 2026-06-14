@@ -372,7 +372,7 @@ async function generatePatientCode() {
   if (generateCodeButton) generateCodeButton.disabled = true;
   if (patientCodeStatus) patientCodeStatus.textContent = "Generating patient code...";
   try {
-    const response = await fetch("/patient-code/next");
+    const response = await fetch("patient-code/next");
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Could not generate patient code.");
     if (codeNoInput) codeNoInput.value = payload.codeNo;
@@ -403,7 +403,7 @@ async function findExistingPatient() {
   if (findPatientButton) findPatientButton.disabled = true;
   if (patientCodeStatus) patientCodeStatus.textContent = "Searching patient code...";
   try {
-    const response = await fetch("/patient-code/lookup", {
+    const response = await fetch("patient-code/lookup", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -675,7 +675,7 @@ async function scanDrugUploads() {
   scanStatus.textContent = "Scanning uploads and checking medication labels... / جارٍ فحص الملفات ومراجعة بيانات الأدوية...";
 
   try {
-    const response = await fetch("/scan-drugs", {
+    const response = await fetch("scan-drugs", {
       method: "POST",
       body: formData,
     });
@@ -781,7 +781,7 @@ formElement.addEventListener("submit", async function (e) {
     if (!uploadsReady) return;
 
     const data = buildFormData(this);
-    const response = await fetch("/submit", {
+    const response = await fetch("submit", {
       method:  "POST",
       headers: { "Content-Type": "application/json" },
       body:    JSON.stringify(data),
@@ -797,7 +797,7 @@ formElement.addEventListener("submit", async function (e) {
     const complaints = getComplaintSelections().join(",");
 
     // Redirect to IIEF page, passing submission metadata
-    window.location.href = `/iief?submission_id=${submissionId}&codeNo=${encodeURIComponent(codeNo)}&name=${encodeURIComponent(fullName)}&age=${encodeURIComponent(age)}&phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}&complaints=${encodeURIComponent(complaints)}`;
+    window.location.href = `iief?submission_id=${submissionId}&codeNo=${encodeURIComponent(codeNo)}&name=${encodeURIComponent(fullName)}&age=${encodeURIComponent(age)}&phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}&complaints=${encodeURIComponent(complaints)}`;
   } catch (error) {
     showMessage(
       "Submission Error / خطأ في الإرسال",

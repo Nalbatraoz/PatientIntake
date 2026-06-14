@@ -122,7 +122,7 @@ const form = document.getElementById("agent-form");
         top_k: Number(document.getElementById("top-k").value || 1)
       };
       try {
-        const response = await fetch("/clinical-agent", {
+        const response = await fetch("clinical-agent", {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },

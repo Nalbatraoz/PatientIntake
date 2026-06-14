@@ -227,7 +227,7 @@
         };
 
         try {
-            const response = await fetch("/submit-ehs", {
+            const response = await fetch("submit-ehs", {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
