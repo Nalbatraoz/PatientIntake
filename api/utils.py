@@ -34,6 +34,11 @@ DB_PATH = os.environ.get("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
 UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
 STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND") or "local_filesystem"
 STORAGE_IS_EPHEMERAL = False
+APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
+if APP_BASE_PATH and APP_BASE_PATH != "/":
+    APP_BASE_PATH = "/" + APP_BASE_PATH.strip("/")
+else:
+    APP_BASE_PATH = ""
 
 try:
     from dotenv import load_dotenv
@@ -73,6 +78,15 @@ def load_secret(name):
             name == "GEMINI_API_KEY" and line.startswith("AIza")
         ),
     )
+
+
+def public_upload_url(relative_path):
+    """Build a public uploads URL that respects any reverse-proxy path prefix."""
+    relative_path = str(relative_path or "").replace("\\", "/").lstrip("/")
+    prefix = APP_BASE_PATH.rstrip("/")
+    if prefix:
+        return f"{prefix}/uploads/{relative_path}"
+    return f"/uploads/{relative_path}"
 
 SUBMISSIONS_PASSWORD = os.environ.get("SUBMISSIONS_PASSWORD", "Doctor")
 OPENFDA_API_KEY = load_secret("OPENFDA_API_KEY")
@@ -294,7 +308,7 @@ def save_uploaded_file(file_obj, category, allowed_extensions):
         "original_name": original_name,
         "stored_name": stored_name,
         "relative_path": relative_path.replace(os.sep, "/"),
-        "url": f"/uploads/{relative_path.replace(os.sep, '/')}",
+        "url": public_upload_url(relative_path),
         "size": os.path.getsize(destination_path),
         "content_type": file_obj.mimetype or "",
         "extension": ext,

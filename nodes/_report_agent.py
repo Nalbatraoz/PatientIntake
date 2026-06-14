@@ -11,6 +11,20 @@ from tools.crewai_agent_tools import run_crewai_json_agent
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 GEMINI_REPORT_MODEL = "gemini-2.5-flash"
+APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
+if APP_BASE_PATH and APP_BASE_PATH != "/":
+    APP_BASE_PATH = "/" + APP_BASE_PATH.strip("/")
+else:
+    APP_BASE_PATH = ""
+
+
+def public_upload_url(relative_path):
+    """Build a public uploads URL that respects any reverse-proxy path prefix."""
+    relative_path = str(relative_path or "").replace("\\", "/").lstrip("/")
+    prefix = APP_BASE_PATH.rstrip("/")
+    if prefix:
+        return f"{prefix}/uploads/{relative_path}"
+    return f"/uploads/{relative_path}"
 
 
 REPORT_SYSTEM_PROMPT = """
@@ -814,7 +828,7 @@ def save_report_pdf(report, *, upload_dir, submission_id=None, patient_name=None
 
     return {
         "relative_path": relative_path.replace(os.sep, "/"),
-        "url": f"/uploads/{relative_path.replace(os.sep, '/')}",
+        "url": public_upload_url(relative_path),
         "filename": filename,
         "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "font_status": font_status,

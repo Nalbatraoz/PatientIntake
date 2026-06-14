@@ -165,6 +165,14 @@ def _persist_completion_state(conn, submission_id, form_data, completion_state, 
         _broadcast_notification(payload)
 
     return updated_completion
+
+
+def _public_upload_url(relative_path):
+    """Build a public uploads URL that respects the reverse-proxy prefix."""
+    relative_path = str(relative_path or "").replace("\\", "/").lstrip("/")
+    if _APP_BASE_PATH:
+        return f"{_APP_BASE_PATH}/uploads/{relative_path}"
+    return f"/uploads/{relative_path}"
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 
@@ -482,8 +490,13 @@ def submissions():
         submission_id = row["id"]
         code_no = f"INT-{submission_id}"
         report_pdf_url = report_pdf.get("url") or ""
-        if not str(report_pdf_url).lower().endswith(".pdf"):
-            report_pdf_url = f"/uploads/reports/{code_no}.pdf"
+        report_pdf_relative = report_pdf.get("relative_path") or f"reports/{code_no}.pdf"
+        expected_prefix = f"{_APP_BASE_PATH}/" if _APP_BASE_PATH else ""
+        if (
+            not str(report_pdf_url).lower().endswith(".pdf")
+            or (expected_prefix and not str(report_pdf_url).startswith(expected_prefix))
+        ):
+            report_pdf_url = _public_upload_url(report_pdf_relative)
         submissions.append({
             "id": submission_id,
             "full_name": row["full_name"] or "",
