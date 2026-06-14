@@ -1,4 +1,4 @@
-# Python
+# Python cache and test output
 __pycache__/
 *.py[cod]
 *$py.class
@@ -19,19 +19,27 @@ ENV/
 # Environment and secrets
 .env
 .env.*
+!.env.example
 APIkey
+APIkey.*
 *.pem
 *.key
 *.crt
+*.p12
+*.pfx
+*.ppk
 
 # Local databases and vector stores
 *.db
 *.sqlite
 *.sqlite3
 chroma_db/
+rag_vectors.db
 
 # Application runtime data
 uploads/
+reports/
+instance/
 
 # Build and packaging
 build/
@@ -50,5 +58,13 @@ Desktop.ini
 
 # Logs and temp files
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
 tmp/
 temp/
+.cache/
+
+# PM2 runtime artifacts
+.pm2/
+pm2*.log
