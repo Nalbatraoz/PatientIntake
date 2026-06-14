@@ -779,16 +779,11 @@ def save_report_pdf(report, *, upload_dir, submission_id=None, patient_name=None
     """Save the structured report as a PDF under uploads/reports and return metadata."""
     date_folder = datetime.utcnow().strftime("%Y%m%d")
     fallback_id = str(submission_id or "unsaved")
-    safe_name = re.sub(r"[^A-Za-z0-9_-]+", "-", str(patient_name or "").strip()).strip("-")
     safe_code = re.sub(r"[^A-Za-z0-9_-]+", "-", str(code_no or "").strip()).strip("-")
-    if safe_name and safe_code:
-        filename_base = f"{safe_name}-({safe_code})"
-    elif safe_name:
-        filename_base = safe_name
-    elif safe_code:
-        filename_base = f"patient-({safe_code})"
+    safe_id = re.sub(r"[^A-Za-z0-9_-]+", "-", fallback_id).strip("-")
+    if safe_code:
+        filename_base = f"clinical-report-{safe_code}"
     else:
-        safe_id = re.sub(r"[^A-Za-z0-9_-]+", "-", fallback_id).strip("-")
         filename_base = f"clinical-report-{safe_id}"
 
     filename = f"{filename_base}.pdf"
