@@ -114,10 +114,6 @@
                         <input type="text" name="name" readonly required class="flat-input">
                     </div>
                     <div>
-                        <span class="info-label">DOB / تاريخ الميلاد:</span>
-                        <input type="date" name="dob" readonly class="flat-input">
-                    </div>
-                    <div>
                         <span class="info-label">Age / العمر:</span>
                         <input type="number" name="age" readonly required class="flat-input">
                     </div>
@@ -125,10 +121,10 @@
                         <span class="info-label">Phone / الهاتف:</span>
                         <input type="text" name="phone" readonly required class="flat-input">
                     </div>
-                </div>
-                <div class="patient-address-row">
-                    <span class="info-label">Address / العنوان:</span>
-                    <input type="text" name="address" readonly class="flat-input">
+                    <div>
+                        <span class="info-label">Email / البريد الإلكتروني:</span>
+                        <input type="email" name="email" readonly class="flat-input">
+                    </div>
                 </div>
             </section>
 
@@ -188,18 +184,22 @@
 
     </form>
 
-    <!-- Results Panel (Redesigned transition screen to continue to PEDT) -->
-    <div id="results" class="hidden results-card" style="text-align: center; max-width: 600px; margin: 40px auto; border-color: #1f4e79;">
-        <h2 style="color: #1f4e79; margin-bottom: 20px;">Questionnaire Submitted / تم إرسال الاستبيان</h2>
-        
-        <div style="margin: 30px 0;">
-            <p style="font-size: 1.15rem; color: #334155; margin-bottom: 12px; font-family: 'Outfit', sans-serif;">
-                Thank you! The first questionnaire is complete. Please click below to continue to the next part.
-            </p>
-            <p dir="rtl" style="font-size: 1.05rem; color: #64748b; line-height: 1.6; font-family: 'Inter', sans-serif; margin-bottom: 30px;">
-                شكراً لك! تم إكمال الاستبيان الأول. يرجى الضغط أدناه للمتابعة إلى الجزء التالي.
-            </p>
+    <!-- Completion Panel -->
+    <div id="results" class="hidden results-card completion-card" style="text-align: center; max-width: 600px; margin: 40px auto; border-color: #1f4e79;">
+        <h2 style="color: #1f4e79; margin-bottom: 20px;">Questionnaire Saved / تم حفظ الاستبيان</h2>
+        <p id="completionMessage" class="completion-message" style="font-size: 1.05rem; color: #334155; margin-bottom: 12px; font-family: 'Outfit', sans-serif;">
+            Thank you! Your answers were saved successfully.
+        </p>
+        <div class="completion-code-box">
+            <span class="completion-code-label">Your code / كودك</span>
+            <div class="completion-code-row">
+                <strong id="completionCode" class="completion-code">INT-000</strong>
+                <button id="copyCodeButton" type="button" class="copy-code-button">Copy code</button>
+            </div>
         </div>
+        <p class="completion-hint" dir="rtl" style="font-size: 1.05rem; color: #64748b; line-height: 1.6; font-family: 'Inter', sans-serif; margin-bottom: 30px;">
+            يرجى الاحتفاظ بهذا الكود للزيارات المستقبلية.
+        </p>
 
         <div class="results-actions">
             <a id="continueBtn" href="#" class="button-link" style="background: #1f4e79; padding: 14px 40px; border-radius: 8px;">Continue / متابعة &rarr;</a>

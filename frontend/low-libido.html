@@ -81,10 +81,6 @@
                         <input type="text" name="name" readonly required class="flat-input">
                     </div>
                     <div>
-                        <span class="info-label">DOB / تاريخ الميلاد:</span>
-                        <input type="date" name="dob" readonly class="flat-input">
-                    </div>
-                    <div>
                         <span class="info-label">Age / العمر:</span>
                         <input type="number" name="age" readonly required class="flat-input">
                     </div>
@@ -92,10 +88,10 @@
                         <span class="info-label">Phone / الهاتف:</span>
                         <input type="text" name="phone" readonly required class="flat-input">
                     </div>
-                </div>
-                <div class="patient-address-row">
-                    <span class="info-label">Address / العنوان:</span>
-                    <input type="text" name="address" readonly class="flat-input">
+                    <div>
+                        <span class="info-label">Email / البريد الإلكتروني:</span>
+                        <input type="email" name="email" readonly class="flat-input">
+                    </div>
                 </div>
             </section>
 
@@ -115,49 +111,17 @@
         </div>
     </form>
 
-    <div id="results" class="hidden results-card">
-        <h2>Results Summary / ملخص النتائج</h2>
-        <div class="results-grid-summary">
-            <div class="score-display">
-                <span class="score-label">Total Score / النتيجة الإجمالية:</span>
-                <span id="totalScore" class="score-value">0 / 40</span>
-            </div>
-            <div class="severity-container">
-                <span class="severity-label">Assessment / التقييم السريري:</span>
-                <span id="assessment" class="severity-badge">Pending</span>
+    <div id="results" class="hidden results-card completion-card">
+        <h2>Questionnaire Saved / تم حفظ الاستبيان</h2>
+        <p id="completionMessage" class="completion-message">Your answers were saved successfully.</p>
+        <div class="completion-code-box">
+            <span class="completion-code-label">Your code / كودك</span>
+            <div class="completion-code-row">
+                <strong id="completionCode" class="completion-code">INT-000</strong>
+                <button id="copyCodeButton" type="button" class="copy-code-button">Copy code</button>
             </div>
         </div>
-
-        <div class="score-interpretation-box">
-            <h3>Score Interpretation / تفسير النتيجة</h3>
-            <table class="domain-table">
-                <thead>
-                    <tr>
-                        <th>Score / الدرجة</th>
-                        <th>Assessment / التقييم</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    <tr>
-                        <td><strong>35 - 40</strong></td>
-                        <td>Excellent libido / رغبة ممتازة</td>
-                    </tr>
-                    <tr>
-                        <td><strong>28 - 34</strong></td>
-                        <td>Mild decrease / انخفاض بسيط</td>
-                    </tr>
-                    <tr>
-                        <td><strong>20 - 27</strong></td>
-                        <td>Moderate decrease / انخفاض متوسط</td>
-                    </tr>
-                    <tr>
-                        <td><strong>&lt; 20</strong></td>
-                        <td>Severe decrease / انخفاض شديد</td>
-                    </tr>
-                </tbody>
-            </table>
-        </div>
-
+        <p class="completion-hint">Please remember this code for future visits.</p>
         <div class="results-actions">
             <a id="continueBtn" href="/" class="button-link">Continue / متابعة &rarr;</a>
         </div>

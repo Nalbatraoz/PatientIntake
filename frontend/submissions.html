@@ -35,6 +35,7 @@
             #{{ submission.id }}
           </h2>
           <div class="summary">
+            <span><strong data-i18n-en="Code:" data-i18n-ar="الكود:">Code:</strong> {{ submission.code_no }}</span>
             <span><strong data-i18n-en="Name:" data-i18n-ar="الاسم:">Name:</strong> {{ submission.full_name }}</span>
             <span><strong data-i18n-en="Age:" data-i18n-ar="العمر:">Age:</strong> {{ submission.age }}</span>
             <span><strong data-i18n-en="Mobile:" data-i18n-ar="الهاتف:">Mobile:</strong> {{ submission.mobile }}</span>
@@ -48,6 +49,11 @@
               <span class="submission-tab submission-tab-muted" data-i18n-en="PDF unavailable" data-i18n-ar="ملف PDF غير متاح">PDF unavailable</span>
             {% else %}
               <span class="submission-tab submission-tab-muted" data-i18n-en="Download PDF Report" data-i18n-ar="تنزيل تقرير PDF">Download PDF Report</span>
+            {% endif %}
+            {% if submission.uploaded_files %}
+              <button class="submission-tab" type="button" data-panel-target="{{ submission.upload_panel_id }}" aria-controls="{{ submission.upload_panel_id }}" aria-expanded="false" data-i18n-en="Uploaded Files" data-i18n-ar="الملفات المرفوعة">Uploaded Files</button>
+            {% else %}
+              <span class="submission-tab submission-tab-muted" data-i18n-en="No Uploaded Files" data-i18n-ar="لا توجد ملفات مرفوعة">No Uploaded Files</span>
             {% endif %}
             <button class="submission-tab" type="button" data-panel-target="{{ submission.form_panel_id }}" aria-controls="{{ submission.form_panel_id }}" aria-expanded="false" data-i18n-en="Patient Form Answers" data-i18n-ar="إجابات استمارة المريض">Patient Form Answers</button>
             <button class="submission-tab" type="button" data-panel-target="{{ submission.ai_panel_id }}" aria-controls="{{ submission.ai_panel_id }}" aria-expanded="false" data-i18n-en="AI Clinical Report" data-i18n-ar="التقرير السريري بالذكاء الاصطناعي">AI Clinical Report</button>
@@ -100,6 +106,32 @@
               </tbody>
             </table>
           </div>
+
+          {% if submission.uploaded_files %}
+          <div id="{{ submission.upload_panel_id }}" class="submission-panel form-details" hidden>
+            <table>
+              <tbody>
+                <tr>
+                  <th data-i18n-en="Uploaded Files" data-i18n-ar="الملفات المرفوعة">Uploaded Files</th>
+                  <td>
+                    {% set uploaded_files_answer = {"type": "links", "links": submission.uploaded_files} %}
+                    {% if uploaded_files_answer.links %}
+                      <ul>
+                        {% for link in uploaded_files_answer.links %}
+                          {% if link.url %}
+                            <li><a href="{{ link.url }}" target="_blank" rel="noopener">{{ link.name }}</a></li>
+                          {% else %}
+                            <li>{{ link.name }}</li>
+                          {% endif %}
+                        {% endfor %}
+                      </ul>
+                    {% endif %}
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+          {% endif %}
 
           <div id="{{ submission.ai_panel_id }}" class="submission-panel ai-report" hidden>
             <div class="ai-report-content">

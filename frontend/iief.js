@@ -2,15 +2,19 @@
 (function() {
     const urlParams = new URLSearchParams(window.location.search);
     const submissionId = urlParams.get('submission_id');
-    const fullName = urlParams.get('fullName');
-    const dob = urlParams.get('dob');
+    const fullName = urlParams.get('name') || urlParams.get('fullName');
     const age = urlParams.get('age');
-    const phone = urlParams.get('phone');
-    const address = urlParams.get('address');
+    const phone = urlParams.get('phone') || urlParams.get('mobile');
+    const email = urlParams.get('email');
+    const codeNo = urlParams.get('codeNo') || (submissionId ? `INT-${submissionId}` : "");
     const complaints = (urlParams.get('complaints') || '')
         .split(',')
         .map(item => item.trim())
         .filter(Boolean);
+
+    if (codeNo && !urlParams.get('codeNo')) {
+        urlParams.set('codeNo', codeNo);
+    }
 
     function buildForwardQuery(nextComplaints = complaints) {
         const nextParams = new URLSearchParams(urlParams);
@@ -27,16 +31,14 @@
 
     // Pre-fill patient details if available from query parameters
     const nameInput = document.querySelector('[name="name"]');
-    const dobInput = document.querySelector('[name="dob"]');
     const ageInput = document.querySelector('[name="age"]');
     const phoneInput = document.querySelector('[name="phone"]');
-    const addressInput = document.querySelector('[name="address"]');
+    const emailInput = document.querySelector('[name="email"]');
 
     if (fullName && nameInput) nameInput.value = fullName;
-    if (dob && dobInput) dobInput.value = dob;
     if (age && ageInput) ageInput.value = age;
     if (phone && phoneInput) phoneInput.value = phone;
-    if (address && addressInput) addressInput.value = address;
+    if (email && emailInput) emailInput.value = email;
 
     // Standard options sets to reuse
     const freqOptions = [
@@ -346,6 +348,65 @@
         }
     }
 
+    function copyCodeToClipboard(code, button) {
+        if (!code) return;
+        const originalText = button?.textContent || "Copy code";
+        const restoreText = function () {
+            if (button) {
+                button.textContent = "Copied!";
+                setTimeout(function () {
+                    button.textContent = originalText;
+                }, 1400);
+            }
+        };
+        const fallback = function () {
+            const temp = document.createElement("textarea");
+            temp.value = code;
+            temp.setAttribute("readonly", "readonly");
+            temp.style.position = "absolute";
+            temp.style.left = "-9999px";
+            document.body.appendChild(temp);
+            temp.select();
+            document.execCommand("copy");
+            temp.remove();
+        };
+
+        if (navigator.clipboard?.writeText) {
+            navigator.clipboard.writeText(code).then(restoreText).catch(function () {
+                fallback();
+                restoreText();
+            });
+        } else {
+            fallback();
+            restoreText();
+        }
+    }
+
+    function showCompletionCard(message, continueHref, continueText) {
+        const resultsDiv = document.getElementById("results");
+        if (!resultsDiv) return;
+        const completionCode = document.getElementById("completionCode");
+        const completionMessage = document.getElementById("completionMessage");
+        const continueBtn = document.getElementById("continueBtn");
+        const copyButton = document.getElementById("copyCodeButton");
+        const finalCode = codeNo || `INT-${submissionId || ""}`;
+
+        if (completionCode) completionCode.textContent = finalCode;
+        if (completionMessage) completionMessage.textContent = message;
+        if (continueBtn && continueHref) {
+            continueBtn.href = continueHref;
+            continueBtn.textContent = continueText;
+        }
+        if (copyButton) {
+            copyButton.onclick = function () {
+                copyCodeToClipboard(finalCode, copyButton);
+            };
+        }
+
+        resultsDiv.classList.remove("hidden");
+        resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
     // Navigation buttons event listeners
     document.getElementById("startBtn").addEventListener("click", () => {
         showStep(2);
@@ -461,22 +522,18 @@
             document.getElementById("step-1").style.display = "none";
             document.getElementById("step-2").style.display = "none";
             document.getElementById("step-3").style.display = "none";
-            
-            const resultsDiv = document.getElementById("results");
-            resultsDiv.classList.remove("hidden");
-
-            // Setup the continue button link to forward metadata to PEDT Questionnaire page
-            const continueBtn = document.getElementById("continueBtn");
-            if (continueBtn) {
-                const nextPage = resolveNextPage();
-                continueBtn.href = `${nextPage}${nextPage === '/' ? '' : buildForwardQuery()}`;
-                continueBtn.textContent = nextPage === '/'
-                    ? 'Finish / إنهاء'
-                    : 'Continue / متابعة →';
+            const nextPage = resolveNextPage();
+            if (nextPage !== "/") {
+                window.location.replace(`${nextPage}${buildForwardQuery()}`);
+                return;
             }
 
-            // Scroll to results top smoothly
-            resultsDiv.scrollIntoView({ behavior: "smooth", block: "start" });
+            showCompletionCard(
+                "This is your code. Please remember it for future visits.",
+                "/",
+                "Finish / إنهاء"
+            );
+            return;
 
         } catch (error) {
             console.error("IIEF Submit error:", error);

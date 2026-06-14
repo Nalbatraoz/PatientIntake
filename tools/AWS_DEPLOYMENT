@@ -1,0 +1,97 @@
+AWS EC2 Deployment Guide
+
+This project is a Flask app with local frontend assets and SQLite-style local state.
+Use this guide when deploying it to an AWS EC2 instance.
+
+Recommended stack
+- Ubuntu 22.04 LTS on EC2
+- Nginx as the public reverse proxy
+- Gunicorn as the Python app server
+- Systemd service for process management
+
+High-level steps
+1. Launch an EC2 instance.
+2. Open inbound ports:
+   - 22 for SSH
+   - 80 for HTTP
+   - 443 for HTTPS if you add TLS
+3. Install system packages:
+   - Python 3
+   - pip
+   - venv
+   - nginx
+   - git
+4. Clone the repository onto the instance.
+5. Create and activate a virtual environment.
+6. Install Python dependencies from `requirements.txt`.
+7. Set required environment variables for the app.
+8. Run the Flask app behind Gunicorn.
+9. Configure Nginx to proxy traffic to Gunicorn.
+10. Create a systemd service so the app starts on reboot.
+
+Example deployment pattern
+- App working directory: `/opt/patient-intake`
+- Gunicorn bind: `127.0.0.1:8000`
+- Nginx public entrypoint: `http://your-domain-or-ec2-ip`
+
+Suggested commands
+```bash
+sudo apt update
+sudo apt install -y python3 python3-venv python3-pip nginx git
+cd /opt
+sudo git clone <your-repo-url> patient-intake
+cd /opt/patient-intake
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+Gunicorn example
+```bash
+gunicorn -b 127.0.0.1:8000 api.main:app
+```
+
+Systemd example
+```ini
+[Unit]
+Description=Patient Intake App
+After=network.target
+
+[Service]
+User=ubuntu
+WorkingDirectory=/opt/patient-intake
+Environment="FLASK_ENV=production"
+ExecStart=/opt/patient-intake/.venv/bin/gunicorn -b 127.0.0.1:8000 api.main:app
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+```
+
+Nginx example
+```nginx
+server {
+    listen 80;
+    server_name _;
+
+    location / {
+        proxy_pass http://127.0.0.1:8000;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}
+```
+
+Notes
+- If the app writes uploads or local data, make sure the instance storage is persistent enough for your use case.
+- If you want HTTPS, put the app behind a domain and add Certbot or an AWS load balancer.
+- If you use any external APIs, confirm the required environment variables are set on the EC2 instance.
+
+Operational checklist
+- Verify the app starts on boot.
+- Confirm uploads work.
+- Confirm the submissions page loads.
+- Confirm notifications still arrive.
+- Test one full patient flow from intake to final code display.

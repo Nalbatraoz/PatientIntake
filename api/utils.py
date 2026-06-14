@@ -11,6 +11,7 @@ from urllib.parse import urlencode
 
 from flask import Response, render_template, request
 from werkzeug.utils import secure_filename
+from werkzeug.security import check_password_hash, generate_password_hash
 
 from core.agent_utils import compact_text as first_text
 from core.agent_utils import load_secret as read_secret
@@ -117,7 +118,19 @@ def get_db_connection():
         )
     """)
     conn.commit()
+    ensure_intake_form_schema(conn)
     return conn
+
+
+def ensure_intake_form_schema(conn):
+    """Add optional intake form columns that newer app versions rely on."""
+    cur = conn.cursor()
+    cur.execute("PRAGMA table_info(intake_forms)")
+    existing_columns = {row[1] for row in cur.fetchall()}
+
+    if "patient_password_hash" not in existing_columns:
+        cur.execute("ALTER TABLE intake_forms ADD COLUMN patient_password_hash TEXT")
+        conn.commit()
 
 def generate_next_patient_code():
     """Generate the next available patient code (e.g., INT-1, INT-2, etc.)."""
@@ -131,8 +144,8 @@ def generate_next_patient_code():
     next_id = max_id + 1
     return f"INT-{next_id}"
 
-def get_patient_by_code(code):
-    """Look up a patient record by their patient code (e.g., INT-1)."""
+def get_patient_by_code(code, password=None):
+    """Look up a patient record by code and verify the patient password when present."""
     if not code or not isinstance(code, str):
         return None
     
@@ -148,7 +161,10 @@ def get_patient_by_code(code):
     
     conn = get_db_connection()
     cur = conn.cursor()
-    cur.execute("SELECT id, full_name, age, mobile, email, form_data FROM intake_forms WHERE id = ?", (patient_id,))
+    cur.execute(
+        "SELECT id, full_name, age, mobile, email, form_data, patient_password_hash FROM intake_forms WHERE id = ?",
+        (patient_id,),
+    )
     row = cur.fetchone()
     conn.close()
     
@@ -159,7 +175,13 @@ def get_patient_by_code(code):
         form_data = json.loads(row["form_data"] or "{}")
     except json.JSONDecodeError:
         form_data = {}
-    
+
+    stored_hash = row["patient_password_hash"] or ""
+    password = password or ""
+    if stored_hash:
+        if not password or not check_password_hash(stored_hash, password):
+            return None
+
     return {
         "id": row["id"],
         "codeNo": f"INT-{row['id']}",
@@ -168,7 +190,16 @@ def get_patient_by_code(code):
         "mobile": row["mobile"],
         "email": row["email"],
         "form_data": form_data,
+        "password_required": bool(stored_hash),
     }
+
+
+def hash_patient_password(password):
+    """Hash a patient-chosen password for storage."""
+    password = str(password or "").strip()
+    if not password:
+        raise ValueError("Patient password is required.")
+    return generate_password_hash(password)
 
 def safe_json_loads(value, fallback=None):
     """Parse JSON strings safely while returning a fallback for empty or invalid values."""
@@ -663,7 +694,7 @@ def build_ai_summary_points(pipeline, limit=12):
     status = str(pipeline.get("status") or "").strip()
     stopped_after = str(pipeline.get("stopped_after") or "").strip()
     if status:
-        add_point(f"Pipeline status: {status}" + (f" (stopped after {stopped_after})" if stopped_after else ""))
+        add_point(f"Pipeline status: {status}")
 
     if pipeline.get("error"):
         add_point(f"Pipeline error: {pipeline.get('error')}")
@@ -675,9 +706,18 @@ def build_ai_summary_points(pipeline, limit=12):
         reasoning = str(lifestyle.get("reasoning") or "").strip()
         if decision or confidence:
             label = "Lifestyle triage"
-            suffix = f": {decision}" if decision else ""
+            decision_text = {
+                "no": "No concern identified",
+                "yes": "Concern identified",
+                "likely": "Likely concern identified",
+                "unlikely": "Unlikely concern",
+            }.get(decision.lower(), decision)
+            suffix = f": {decision_text}" if decision_text else ""
             if confidence:
-                suffix += f" ({confidence} confidence)" if suffix else f": {confidence} confidence"
+                confidence_text = confidence.lower()
+                if confidence_text in {"high", "medium", "low"}:
+                    confidence_text = f"{confidence_text.capitalize()} confidence"
+                suffix += f" ({confidence_text})" if suffix else f": {confidence_text}"
             add_point(label + suffix)
         if reasoning:
             add_point(f"Lifestyle note: {reasoning}")

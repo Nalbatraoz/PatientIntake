@@ -14,13 +14,13 @@ const REQUIRED_FIELDS = [
   { name: "patientStatus", label: "Patient Status / حالة المريض", type: "radio" },
 
   // Purpose: personal information fields.
-  { name: "codeNo",      label: "Code No. / كود المريض",               type: "text"   },
-  { name: "fullName",    label: "Full Name / الاسم الكامل",             type: "text"   },
+  { name: "codeNo",      label: "Code / الكود",                         type: "text"   },
+  { name: "fullName",    label: "Name / الاسم",                         type: "text"   },
   { name: "age",         label: "Age / السن",                           type: "number", extra: { min: 1, max: 120 } },
   { name: "nationality", label: "Nationality / الجنسية",                type: "text"   },
   { name: "occupation",  label: "Occupation / الوظيفة",                 type: "text"   },
-  { name: "mobile",      label: "Mobile No. / رقم الموبايل",            type: "text"   },
-  { name: "email",       label: "Email Address / البريد الإلكتروني",    type: "email"  },
+  { name: "mobile",      label: "Phone / الهاتف",                       type: "text"   },
+  { name: "email",       label: "Email / البريد الإلكتروني",             type: "email"  },
 
   // Purpose: marital and family history fields.
   { name: "maritalStatus",         label: "Marital Status / الحالة الاجتماعية",                                  type: "radio" },
@@ -243,6 +243,7 @@ const scanDrugsButton = document.getElementById("scanDrugsButton");
 const scanStatus = document.getElementById("scanStatus");
 const scanResults = document.getElementById("scanResults");
 const uploadedDrugAnalysisInput = document.getElementById("uploadedDrugAnalysis");
+const uploadedFilesInput = document.getElementById("uploadedFiles");
 const uploadedFileSummaryInput = document.getElementById("uploadedFileSummary");
 const currentMedicationsInput = document.getElementById("currentMedications");
 const medicalHistoryInput = document.getElementById("medicalHistory");
@@ -250,6 +251,10 @@ const investigationResultsInput = document.getElementById("investigationResults"
 const firstTimePanel = document.getElementById("firstTimePanel");
 const existingPatientPanel = document.getElementById("existingPatientPanel");
 const existingPatientCodeInput = document.getElementById("existingPatientCode");
+const patientPasswordCreateInput = document.getElementById("patientPasswordCreate");
+const patientPasswordConfirmInput = document.getElementById("patientPasswordConfirm");
+const existingPatientPasswordInput = document.getElementById("existingPatientPassword");
+const patientPasswordInput = getField("patientPassword");
 const generateCodeButton = document.getElementById("generateCodeButton");
 const findPatientButton = document.getElementById("findPatientButton");
 const patientCodeStatus = document.getElementById("patientCodeStatus");
@@ -269,6 +274,70 @@ function updatePatientStatusPanels() {
   const status = getCheckedValue("patientStatus");
   if (firstTimePanel) firstTimePanel.hidden = status !== "first_time";
   if (existingPatientPanel) existingPatientPanel.hidden = status !== "existing";
+}
+
+function setStoredPatientPassword(password) {
+  if (patientPasswordInput) {
+    patientPasswordInput.value = String(password || "");
+  }
+}
+
+function clearPatientPasswordFields() {
+  if (patientPasswordInput) patientPasswordInput.value = "";
+  if (patientPasswordCreateInput) patientPasswordCreateInput.value = "";
+  if (patientPasswordConfirmInput) patientPasswordConfirmInput.value = "";
+  if (existingPatientPasswordInput) existingPatientPasswordInput.value = "";
+}
+
+function getVisiblePatientPassword() {
+  const status = getCheckedValue("patientStatus");
+  if (status === "first_time") {
+    return {
+      password: patientPasswordCreateInput?.value.trim() || "",
+      confirm: patientPasswordConfirmInput?.value.trim() || "",
+    };
+  }
+  if (status === "existing") {
+    return {
+      password: existingPatientPasswordInput?.value.trim() || "",
+      confirm: "",
+    };
+  }
+  return { password: "", confirm: "" };
+}
+
+function validatePasswordCapture() {
+  const status = getCheckedValue("patientStatus");
+  if (status === "first_time") {
+    const password = patientPasswordCreateInput?.value.trim() || "";
+    const confirm = patientPasswordConfirmInput?.value.trim() || "";
+    if (!password) {
+      showMessage("Password Required", "Create a private password before generating the patient code.", patientPasswordCreateInput);
+      return false;
+    }
+    if (password.length < 8) {
+      showMessage("Password Too Short", "Use at least 8 characters for the patient password.", patientPasswordCreateInput);
+      return false;
+    }
+    if (password !== confirm) {
+      showMessage("Password Mismatch", "The password and confirmation do not match.", patientPasswordConfirmInput);
+      return false;
+    }
+    setStoredPatientPassword(password);
+    return true;
+  }
+
+  if (status === "existing") {
+    const password = existingPatientPasswordInput?.value.trim() || "";
+    if (!password) {
+      showMessage("Password Required", "Enter the patient password to open this record.", existingPatientPasswordInput);
+      return false;
+    }
+    setStoredPatientPassword(password);
+    return true;
+  }
+
+  return true;
 }
 
 function fillFormFromSavedData(data) {
@@ -297,6 +366,9 @@ function fillFormFromSavedData(data) {
 }
 
 async function generatePatientCode() {
+  if (!validatePasswordCapture()) {
+    return;
+  }
   if (generateCodeButton) generateCodeButton.disabled = true;
   if (patientCodeStatus) patientCodeStatus.textContent = "Generating patient code...";
   try {
@@ -304,6 +376,7 @@ async function generatePatientCode() {
     const payload = await response.json();
     if (!response.ok) throw new Error(payload.error || "Could not generate patient code.");
     if (codeNoInput) codeNoInput.value = payload.codeNo;
+    if (patientPasswordInput) patientPasswordInput.value = patientPasswordCreateInput?.value.trim() || "";
     setPatientReady(true);
     if (patientCodeStatus) patientCodeStatus.textContent = `Generated patient code: ${payload.codeNo}`;
     document.querySelector("section:not(.visit-type-section):not(.patient-status-section)")
@@ -323,16 +396,28 @@ async function findExistingPatient() {
     return;
   }
 
+  if (!validatePasswordCapture()) {
+    return;
+  }
+
   if (findPatientButton) findPatientButton.disabled = true;
   if (patientCodeStatus) patientCodeStatus.textContent = "Searching patient code...";
   try {
-    const response = await fetch(`/patient-code/${encodeURIComponent(code)}`);
+    const response = await fetch("/patient-code/lookup", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        codeNo: code,
+        password: existingPatientPasswordInput?.value.trim() || "",
+      }),
+    });
     const payload = await response.json();
     if (!response.ok || !payload.found) {
       throw new Error(payload.error || `No patient found for code ${code}.`);
     }
     fillFormFromSavedData(payload.form_data);
     if (codeNoInput) codeNoInput.value = payload.codeNo;
+    if (patientPasswordInput) patientPasswordInput.value = existingPatientPasswordInput?.value.trim() || "";
     setPatientReady(true);
     if (patientCodeStatus) patientCodeStatus.textContent = `Found existing patient code: ${payload.codeNo}`;
     document.querySelector("section:not(.visit-type-section):not(.patient-status-section)")
@@ -350,6 +435,7 @@ getAllFields("patientStatus").forEach(el => {
   el.addEventListener("change", () => {
     setPatientReady(false);
     if (codeNoInput) codeNoInput.value = "";
+    clearPatientPasswordFields();
     updatePatientStatusPanels();
     if (patientCodeStatus) patientCodeStatus.textContent = "";
   });
@@ -358,6 +444,12 @@ getAllFields("patientStatus").forEach(el => {
 generateCodeButton?.addEventListener("click", generatePatientCode);
 findPatientButton?.addEventListener("click", findExistingPatient);
 existingPatientCodeInput?.addEventListener("keydown", event => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    findExistingPatient();
+  }
+});
+existingPatientPasswordInput?.addEventListener("keydown", event => {
   if (event.key === "Enter") {
     event.preventDefault();
     findExistingPatient();
@@ -429,6 +521,7 @@ function resetScanState() {
   latestScanSignature = "";
   latestScanResult = null;
   if (uploadedDrugAnalysisInput) uploadedDrugAnalysisInput.value = "";
+  if (uploadedFilesInput) uploadedFilesInput.value = "";
   if (scanResults) {
     scanResults.hidden = true;
     scanResults.innerHTML = "";
@@ -592,6 +685,7 @@ async function scanDrugUploads() {
     latestScanSignature = signature;
     latestScanResult = result;
     if (uploadedDrugAnalysisInput) uploadedDrugAnalysisInput.value = JSON.stringify(result);
+    if (uploadedFilesInput) uploadedFilesInput.value = JSON.stringify(result.files || []);
     renderScanResults(result);
     scanStatus.textContent = result.message || "Scan complete / تم الفحص.";
     return true;
@@ -672,6 +766,15 @@ formElement.addEventListener("submit", async function (e) {
     return;
   }
 
+  if (!validatePasswordCapture()) {
+    return;
+  }
+
+  const capturedPassword = getVisiblePatientPassword().password;
+  if (patientPasswordInput) {
+    patientPasswordInput.value = capturedPassword;
+  }
+
   setSubmitState(true, "Submitting form and running the clinical workflow. Please wait...");
   try {
     const uploadsReady = await ensureUploadFilesAreScanned();
@@ -689,13 +792,12 @@ formElement.addEventListener("submit", async function (e) {
     const fullName = getField("fullName")?.value || "";
     const age = getField("age")?.value || "";
     const phone = getField("mobile")?.value || "";
+    const email = getField("email")?.value || "";
+    const codeNo = result.codeNo || `INT-${submissionId}`;
     const complaints = getComplaintSelections().join(",");
-    // Check if dob and address fields exist in the form
-    const dob = document.querySelector('[name="dob"]')?.value || "";
-    const address = document.querySelector('[name="address"]')?.value || "";
 
     // Redirect to IIEF page, passing submission metadata
-    window.location.href = `/iief?submission_id=${submissionId}&fullName=${encodeURIComponent(fullName)}&age=${age}&phone=${encodeURIComponent(phone)}&dob=${encodeURIComponent(dob)}&address=${encodeURIComponent(address)}&complaints=${encodeURIComponent(complaints)}`;
+    window.location.href = `/iief?submission_id=${submissionId}&codeNo=${encodeURIComponent(codeNo)}&name=${encodeURIComponent(fullName)}&age=${encodeURIComponent(age)}&phone=${encodeURIComponent(phone)}&email=${encodeURIComponent(email)}&complaints=${encodeURIComponent(complaints)}`;
   } catch (error) {
     showMessage(
       "Submission Error / خطأ في الإرسال",
@@ -720,7 +822,7 @@ function buildFormData(form) {
     }
   });
 
-  ["uploadedDrugAnalysis", "uploadedFileSummary"].forEach(key => {
+  ["uploadedDrugAnalysis", "uploadedFiles", "uploadedFileSummary"].forEach(key => {
     if (typeof data[key] !== "string" || !data[key].trim()) return;
     try {
       data[key] = JSON.parse(data[key]);

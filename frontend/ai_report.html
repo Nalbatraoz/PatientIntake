@@ -135,7 +135,7 @@
         {% set confidence = ca_report.get("confidence", "") %}
         {% set conf_color = {"high": "#2e7d32", "moderate": "#e65100", "low": "#b71c1c"}.get(confidence, "#555") %}
         <div class="ai-section">
-          <div class="ai-section-title" data-i18n-en="Clinical Agent - CrewAI" data-i18n-ar="الوكيل السريري - CrewAI">Clinical Agent - CrewAI</div>
+          <div class="ai-section-title" data-i18n-en="Clinical Report" data-i18n-ar="التقرير السريري">Clinical Report</div>
           <div class="ai-summary-box">
             <p>{{ ca_report.get("clinical_summary", "") }}</p>
             <span class="ai-badge" style="background:{{ conf_color }}"><span data-i18n-en="Confidence:" data-i18n-ar="الثقة:">Confidence:</span> {{ confidence }}</span>

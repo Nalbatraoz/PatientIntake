@@ -185,7 +185,7 @@
     li.innerHTML = `
       <a href="#submission-${escHtml(String(sub.submission_id))}" class="notif-link">
         <span class="notif-name">${escHtml(sub.full_name)}</span>
-        <span class="notif-meta">${escHtml(visitLabel(sub.visit_type))}${sub.age ? " · " + escHtml(t("age")) + " " + escHtml(String(sub.age)) : ""} · #${escHtml(String(sub.submission_id))}</span>
+        <span class="notif-meta">${escHtml(visitLabel(sub.visit_type))}${sub.age ? " · " + escHtml(t("age")) + " " + escHtml(String(sub.age)) : ""} · ${escHtml(String(sub.codeNo || ("INT-" + sub.submission_id)))}</span>
       </a>
       <time class="notif-time">${escHtml(sub.timestamp)}</time>
     `;
@@ -209,7 +209,7 @@
     const title = isPipelineCompleted ? t("aiReportReady") : t("newPatientSubmission");
     const subtitle = isPipelineCompleted
       ? "#" + escHtml(String(sub.submission_id)) + " · " + escHtml(String(sub.status || "completed"))
-      : escHtml(sub.full_name) + (sub.age ? " · " + escHtml(t("age")) + " " + escHtml(String(sub.age)) : "") + " · " + escHtml(visitLabel(sub.visit_type));
+      : escHtml(sub.full_name) + (sub.age ? " · " + escHtml(t("age")) + " " + escHtml(String(sub.age)) : "") + " · " + escHtml(String(sub.codeNo || ("INT-" + sub.submission_id))) + " · " + escHtml(visitLabel(sub.visit_type));
 
     const toast = document.createElement("div");
     toast.className = "notif-toast";

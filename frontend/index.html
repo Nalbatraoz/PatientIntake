@@ -61,6 +61,11 @@
 
       <div id="firstTimePanel" class="patient-code-panel" hidden>
         <p class="hint">A new patient code will be generated automatically. / سيتم إنشاء كود جديد تلقائيا.</p>
+        <label for="patientPasswordCreate">Create Password / إنشاء كلمة المرور</label>
+        <input id="patientPasswordCreate" type="password" autocomplete="new-password" placeholder="Create a private password">
+        <p class="hint">Remember this password for future visits.</p>
+        <label for="patientPasswordConfirm">Confirm Password / تأكيد كلمة المرور</label>
+        <input id="patientPasswordConfirm" type="password" autocomplete="new-password" placeholder="Confirm the password">
         <button id="generateCodeButton" class="secondary-button" type="button">Generate Code & Continue / إنشاء الكود
           والمتابعة</button>
       </div>
@@ -71,6 +76,8 @@
           <input id="existingPatientCode" placeholder="Example: INT-1">
           <button id="findPatientButton" class="secondary-button" type="button">Search / بحث</button>
         </div>
+        <label for="existingPatientPassword">Password / كلمة المرور</label>
+        <input id="existingPatientPassword" type="password" autocomplete="current-password" placeholder="Enter the patient password">
       </div>
 
       <p id="patientCodeStatus" class="patient-code-status" role="status" aria-live="polite"></p>
@@ -81,8 +88,9 @@
 
       <label>Code No. / كود المريض</label>
       <input name="codeNo" readonly>
+      <input id="patientPassword" name="patientPassword" type="hidden">
 
-      <label>Full Name / الاسم الكامل</label>
+      <label>Name / الاسم</label>
       <input name="fullName" required>
 
       <label>Age / السن</label>
@@ -94,10 +102,10 @@
       <label>Occupation / الوظيفة</label>
       <input name="occupation">
 
-      <label>Mobile No. / رقم الموبايل</label>
+      <label>Phone / الهاتف</label>
       <input name="mobile">
 
-      <label>Email Address / البريد الإلكتروني</label>
+      <label>Email / البريد الإلكتروني</label>
       <input type="email" name="email">
     </section>
 
@@ -591,6 +599,7 @@
       <div id="scanResults" class="scan-results" hidden></div>
 
       <input id="uploadedDrugAnalysis" type="hidden" name="uploadedDrugAnalysis">
+      <input id="uploadedFiles" type="hidden" name="uploadedFiles">
       <input id="uploadedFileSummary" type="hidden" name="uploadedFileSummary">
     </section>
 

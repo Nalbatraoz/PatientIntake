@@ -97,68 +97,20 @@
 
         </form>
 
-        <!-- Results Panel -->
-        <div id="results" class="hidden results-card">
-            <h2>Results Summary / ملخص النتائج</h2>
-
-            <div class="results-grid-summary">
-                <div class="score-display">
-                    <span class="score-label">Total Score / النتيجة الإجمالية:</span>
-                    <span id="totalScore" class="score-value">0 / 20</span>
-                </div>
-
-                <div class="severity-container">
-                    <span class="severity-label">Assessment / التقييم السريري:</span>
-                    <span id="assessment" class="severity-badge">Normal</span>
+        <!-- Completion Panel -->
+        <div id="results" class="hidden results-card completion-card">
+            <h2>Questionnaire Saved / تم حفظ الاستبيان</h2>
+            <p id="completionMessage" class="completion-message">Your answers were saved successfully.</p>
+            <div class="completion-code-box">
+                <span class="completion-code-label">Your code / كودك</span>
+                <div class="completion-code-row">
+                    <strong id="completionCode" class="completion-code">INT-000</strong>
+                    <button id="copyCodeButton" type="button" class="copy-code-button">Copy code</button>
                 </div>
             </div>
-
-            <div class="score-interpretation-box"
-                style="background: #f8fafc; padding: 25px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 30px;">
-                <h3
-                    style="font-family: 'Outfit', sans-serif; font-size: 1.15rem; color: #0f172a; margin-bottom: 12px; font-weight: 700; text-transform: uppercase;">
-                    Score Interpretation / تفسير النتيجة
-                </h3>
-                <table class="domain-table" style="margin: 10px 0 0 0;">
-                    <thead>
-                        <tr>
-                            <th>Score / الدرجة</th>
-                            <th>Diagnosis / التشخيص</th>
-                            <th>Explanation / التوضيح</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><strong>&le; 8</strong></td>
-                            <td><span style="color: #15803d; font-weight: 600;">Low Likelihood of PE / احتمالية منخفضة
-                                    لسرعة القذف</span></td>
-                            <td style="font-size: 0.85rem;">Indicates a low probability of premature ejaculation
-                                issues.<br><span style="color:#64748b;">يشير إلى احتمالية منخفضة لوجود مشاكل تتعلق
-                                    بالقذف السريع.</span></td>
-                        </tr>
-                        <tr>
-                            <td><strong>9 - 10</strong></td>
-                            <td><span style="color: #9a3412; font-weight: 600;">Possible PE / احتمالية وجود سرعة
-                                    قذف</span></td>
-                            <td style="font-size: 0.85rem;">Suggests a moderate/possible issue with control. Further
-                                clinical assessment recommended.<br><span style="color:#64748b;">يشير إلى احتمالية وجود
-                                    مشكلة متوسطة في التحكم. يُنصح بالتقييم السريري.</span></td>
-                        </tr>
-                        <tr>
-                            <td><strong>&ge; 11</strong></td>
-                            <td><span style="color: #b91c1c; font-weight: 600;">Probable PE / احتمالية عالية لسرعة
-                                    القذف</span></td>
-                            <td style="font-size: 0.85rem;">Highly indicates clinical premature ejaculation issues.
-                                Consult a clinician for support.<br><span style="color:#64748b;">يشير بدرجة عالية إلى
-                                    وجود مشكلة سريرية تتعلق بالقذف السريع. يرجى استشارة الطبيب.</span></td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-
+            <p class="completion-hint">Please remember this code for future visits.</p>
             <div class="results-actions">
-                <a id="continueBtn" href="/" class="button-link" style="background: #1f4e79; border-radius: 8px;">Continue /
-                    متابعة &rarr;</a>
+                <a id="continueBtn" href="/" class="button-link">Continue / متابعة &rarr;</a>
             </div>
         </div>
 

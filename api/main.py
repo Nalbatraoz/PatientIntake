@@ -27,9 +27,11 @@ from api.utils import (
     get_patient_by_code,
     init_db,
     build_ai_summary_points,
+    first_text,
     lookup_drugbank,
     lookup_openfda_label,
     parse_possible_drug_names,
+    hash_patient_password,
     password_required_response,
     render_ai_report,
     run_full_clinical_pipeline,
@@ -42,6 +44,14 @@ app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "frontend"))
 _notification_lock = threading.Lock()
 _notification_listeners = []
 
+_COMPLAINT_TO_FORM_KEY = {
+    "low_libido": "low_libido_data",
+    "premature_ejaculation": "pedt_data",
+    "erectile_dysfunction": "ehs_data",
+}
+
+_REQUIRED_BASE_FORM_KEYS = ("iief_data",)
+
 def _broadcast_notification(payload):
     data = json.dumps(payload, ensure_ascii=False)
     with _notification_lock:
@@ -53,6 +63,78 @@ def _broadcast_notification(payload):
                 dead.append(q)
         for q in dead:
             _notification_listeners.remove(q)
+
+def _load_form_data(raw_value):
+    """Parse persisted form JSON safely."""
+    try:
+        return json.loads(raw_value or "{}")
+    except json.JSONDecodeError:
+        return {}
+
+def _extract_complaints(form_data):
+    """Return the patient complaint list as normalized strings."""
+    complaints = form_data.get("complaints", [])
+    if isinstance(complaints, str):
+        complaints = [item.strip() for item in complaints.split(",")]
+    if not isinstance(complaints, list):
+        return []
+    return [str(item).strip() for item in complaints if str(item).strip()]
+
+def _required_form_keys(form_data):
+    """Return the questionnaire keys needed before the intake is complete."""
+    required = set(_REQUIRED_BASE_FORM_KEYS)
+    for complaint in _extract_complaints(form_data):
+        form_key = _COMPLAINT_TO_FORM_KEY.get(complaint)
+        if form_key:
+            required.add(form_key)
+    return required
+
+def _form_completion_state(form_data):
+    """Compute which patient questionnaire sections are complete."""
+    required = sorted(_required_form_keys(form_data))
+    completed = sorted(
+        key for key in required
+        if form_data.get(key)
+    )
+    is_complete = len(completed) == len(required)
+    completion = form_data.get("completion") if isinstance(form_data.get("completion"), dict) else {}
+    return {
+        "required_forms": required,
+        "completed_forms": completed,
+        "is_complete": is_complete,
+        "notified": bool(completion.get("notified")),
+        "completed_at": completion.get("completed_at"),
+    }
+
+def _persist_completion_state(conn, submission_id, form_data, completion_state, notify_payload=None):
+    """Store completion status and send a single notification when the intake is finished."""
+    updated_completion = dict(completion_state)
+    should_notify = updated_completion["is_complete"] and not updated_completion["notified"]
+    if should_notify:
+        updated_completion["notified"] = True
+        updated_completion["completed_at"] = time.strftime("%Y-%m-%dT%H:%M:%S")
+
+    form_data["completion"] = updated_completion
+    conn.execute(
+        "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+        (json.dumps(form_data, ensure_ascii=False), submission_id),
+    )
+    conn.commit()
+
+    if should_notify:
+        notify_payload = notify_payload or {}
+        payload = {
+            "type": "new_submission",
+            "submission_id": submission_id,
+            "full_name": notify_payload.get("full_name") or "",
+            "visit_type": notify_payload.get("visit_type") or "",
+            "age": str(notify_payload.get("age") or ""),
+            "codeNo": f"INT-{submission_id}",
+            "timestamp": time.strftime("%H:%M"),
+        }
+        _broadcast_notification(payload)
+
+    return updated_completion
 CORS(app)
 app.config["MAX_CONTENT_LENGTH"] = 30 * 1024 * 1024
 
@@ -184,20 +266,53 @@ def generate_patient_code():
 @app.route("/patient-code/<code>")
 def lookup_patient_code(code):
     """Look up an existing patient by their code."""
-    patient = get_patient_by_code(code)
+    password = request.args.get("password") or ""
+    patient = get_patient_by_code(code, password=password)
     
     if not patient:
         return jsonify({
             "found": False,
-            "error": f"Patient code '{code}' not found.",
-        }), 404
+            "error": "Patient record not found or password is incorrect.",
+        }), 401
     
     return jsonify({
         "found": True,
         "codeNo": patient["codeNo"],
         "full_name": patient["full_name"],
+        "name": patient["full_name"],
         "age": patient["age"],
         "mobile": patient["mobile"],
+        "phone": patient["mobile"],
+        "email": patient["email"],
+        "form_data": patient["form_data"],
+    })
+
+
+@app.route("/patient-code/lookup", methods=["POST"])
+def lookup_patient_code_with_password():
+    """Look up a patient record using their code and patient password."""
+    data = request.get_json(silent=True) or {}
+    code = str(data.get("codeNo") or data.get("code") or "").strip()
+    password = str(data.get("password") or "").strip()
+
+    if not code:
+        return jsonify({"found": False, "error": "Patient code is required."}), 400
+
+    patient = get_patient_by_code(code, password=password)
+    if not patient:
+        return jsonify({
+            "found": False,
+            "error": "Patient record not found or password is incorrect.",
+        }), 401
+
+    return jsonify({
+        "found": True,
+        "codeNo": patient["codeNo"],
+        "full_name": patient["full_name"],
+        "name": patient["full_name"],
+        "age": patient["age"],
+        "mobile": patient["mobile"],
+        "phone": patient["mobile"],
         "email": patient["email"],
         "form_data": patient["form_data"],
     })
@@ -299,10 +414,7 @@ def submissions():
 
     submissions = []
     for row in rows:
-        try:
-            form_data = json.loads(row["form_data"] or "{}")
-        except json.JSONDecodeError:
-            form_data = {}
+        form_data = _load_form_data(row["form_data"])
 
         pipeline = form_data.pop("clinical_pipeline", None)
         iief_data = form_data.pop("iief_data", None)
@@ -310,6 +422,7 @@ def submissions():
         ehs_data = form_data.pop("ehs_data", None)
         low_libido_data = form_data.pop("low_libido_data", None)
         report_pdf = (pipeline or {}).get("report_pdf") or {}
+        uploaded_files = form_data.pop("uploadedFiles", None)
         submission_id = row["id"]
         submissions.append({
             "id": submission_id,
@@ -317,15 +430,18 @@ def submissions():
             "age": row["age"] or "",
             "mobile": row["mobile"] or "",
             "email": row["email"] or "",
+            "code_no": f"INT-{submission_id}",
             "form_panel_id": f"form-panel-{submission_id}",
             "ai_panel_id": f"ai-panel-{submission_id}",
             "ai_summary_panel_id": f"ai-summary-panel-{submission_id}",
+            "upload_panel_id": f"upload-panel-{submission_id}",
             "iief_panel_id": f"iief-panel-{submission_id}",
             "pedt_panel_id": f"pedt-panel-{submission_id}",
             "ehs_panel_id": f"ehs-panel-{submission_id}",
             "low_libido_panel_id": f"low-libido-panel-{submission_id}",
             "report_pdf_url": report_pdf.get("url"),
             "report_pdf_error": report_pdf.get("error"),
+            "uploaded_files": uploaded_files,
             "ai_summary_points": build_ai_summary_points(pipeline),
             "iief_data": iief_data,
             "pedt_data": pedt_data,
@@ -334,7 +450,7 @@ def submissions():
             "answers": [
                 {"key": str(key), "value": format_answer(value)}
                 for key, value in form_data.items()
-                if key not in ("clinical_pipeline", "iief_data", "pedt_data", "ehs_data", "low_libido_data")
+                if key not in ("clinical_pipeline", "completion", "iief_data", "pedt_data", "ehs_data", "low_libido_data", "uploadedFiles")
             ],
             "ai_html": render_ai_report(pipeline),
         })
@@ -346,18 +462,25 @@ def submit_form():
     """Save a submitted intake form, then run the configured clinical agent workflow."""
     data = request.json or {}
     initial_payload = dict(data)
+    patient_password = str(data.get("patientPassword") or "").strip()
+
+    if data.get("patientStatus") == "first_time" and not patient_password:
+        return jsonify({"error": "Patient password is required for first-time access."}), 400
+
+    patient_password_hash = hash_patient_password(patient_password) if patient_password else None
     
     conn = get_db_connection()
     cur = conn.cursor()
     cur.execute("""
         INSERT INTO intake_forms 
-        (full_name, age, mobile, email, form_data)
-        VALUES (?, ?, ?, ?, ?)
+        (full_name, age, mobile, email, patient_password_hash, form_data)
+        VALUES (?, ?, ?, ?, ?, ?)
     """, (
         data.get("fullName"),
         data.get("age"),
         data.get("mobile"),
         data.get("email"),
+        patient_password_hash,
         json.dumps(initial_payload, ensure_ascii=False)
     ))
 
@@ -373,6 +496,19 @@ def submit_form():
         (json.dumps(initial_payload, ensure_ascii=False), submission_id),
     )
     conn.commit()
+
+    completion_state = _form_completion_state(initial_payload)
+    _persist_completion_state(
+        conn,
+        submission_id,
+        initial_payload,
+        completion_state,
+        notify_payload={
+            "full_name": data.get("fullName") or "Unknown patient",
+            "visit_type": data.get("visitType") or "",
+            "age": data.get("age") or "",
+        },
+    )
     conn.close()
 
     # Spawn background thread to run clinical pipeline
@@ -397,10 +533,7 @@ def submit_form():
         conn_bg = get_db_connection()
         row = conn_bg.execute("SELECT form_data FROM intake_forms WHERE id = ?", (sub_id,)).fetchone()
         if row:
-            try:
-                current_data = json.loads(row["form_data"] or "{}")
-            except json.JSONDecodeError:
-                current_data = dict(data_copy)
+            current_data = _load_form_data(row["form_data"])
         else:
             current_data = dict(data_copy)
 
@@ -412,29 +545,14 @@ def submit_form():
         conn_bg.commit()
         conn_bg.close()
 
-        _broadcast_notification({
-            "type": "pipeline_completed",
-            "submission_id": sub_id,
-            "status": pipeline_result.get("status"),
-            "stopped_after": pipeline_result.get("stopped_after"),
-            "timestamp": time.strftime("%H:%M"),
-        })
-
     threading.Thread(target=run_pipeline_bg, args=(dict(data), submission_id), daemon=False).start()
-
-    _broadcast_notification({
-        "submission_id": submission_id,
-        "full_name": data.get("fullName") or "Unknown patient",
-        "visit_type": data.get("visitType") or "",
-        "age": str(data.get("age") or ""),
-        "timestamp": time.strftime("%H:%M"),
-    })
 
     return jsonify({
         "message": "Form submitted successfully. Clinical workflow is running in the background.",
         "submission_id": submission_id,
         "codeNo": f"INT-{submission_id}",
         "deployment": deployment_info(),
+        "completion": completion_state,
     })
 
 
@@ -465,31 +583,35 @@ def submit_iief():
         conn.close()
         return jsonify({"error": f"Submission #{submission_id} not found"}), 404
 
-    try:
-        form_data = json.loads(row["form_data"] or "{}")
-    except json.JSONDecodeError:
-        form_data = {}
+    form_data = _load_form_data(row["form_data"])
 
     # Merge IIEF data
     form_data["iief_data"] = iief_data
+    completion_state = _form_completion_state(form_data)
 
     conn.execute(
         "UPDATE intake_forms SET form_data = ? WHERE id = ?",
         (json.dumps(form_data, ensure_ascii=False), submission_id),
     )
     conn.commit()
+    _persist_completion_state(
+        conn,
+        submission_id,
+        form_data,
+        completion_state,
+        notify_payload={
+            "full_name": form_data.get("fullName") or form_data.get("name") or "",
+            "visit_type": form_data.get("visitType") or "",
+            "age": form_data.get("age") or "",
+        },
+    )
     conn.close()
-
-    # Broadcast a notification to refresh submissions in the dashboard
-    _broadcast_notification({
-        "submission_id": submission_id,
-        "type": "iief_submitted",
-        "timestamp": time.strftime("%H:%M"),
-    })
 
     return jsonify({
         "message": "IIEF Questionnaire answers submitted successfully.",
         "submission_id": submission_id,
+        "codeNo": f"INT-{submission_id}",
+        "completion": completion_state,
     })
 
 
@@ -520,31 +642,35 @@ def submit_pedt():
         conn.close()
         return jsonify({"error": f"Submission #{submission_id} not found"}), 404
 
-    try:
-        form_data = json.loads(row["form_data"] or "{}")
-    except json.JSONDecodeError:
-        form_data = {}
+    form_data = _load_form_data(row["form_data"])
 
     # Merge PEDT data
     form_data["pedt_data"] = pedt_data
+    completion_state = _form_completion_state(form_data)
 
     conn.execute(
         "UPDATE intake_forms SET form_data = ? WHERE id = ?",
         (json.dumps(form_data, ensure_ascii=False), submission_id),
     )
     conn.commit()
+    _persist_completion_state(
+        conn,
+        submission_id,
+        form_data,
+        completion_state,
+        notify_payload={
+            "full_name": form_data.get("fullName") or form_data.get("name") or "",
+            "visit_type": form_data.get("visitType") or "",
+            "age": form_data.get("age") or "",
+        },
+    )
     conn.close()
-
-    # Broadcast a notification to refresh submissions in the dashboard
-    _broadcast_notification({
-        "submission_id": submission_id,
-        "type": "pedt_submitted",
-        "timestamp": time.strftime("%H:%M"),
-    })
 
     return jsonify({
         "message": "PEDT Questionnaire answers submitted successfully.",
         "submission_id": submission_id,
+        "codeNo": f"INT-{submission_id}",
+        "completion": completion_state,
     })
 
 
@@ -574,29 +700,34 @@ def submit_ehs():
         conn.close()
         return jsonify({"error": f"Submission #{submission_id} not found"}), 404
 
-    try:
-        form_data = json.loads(row["form_data"] or "{}")
-    except json.JSONDecodeError:
-        form_data = {}
+    form_data = _load_form_data(row["form_data"])
 
     form_data["ehs_data"] = ehs_data
+    completion_state = _form_completion_state(form_data)
 
     conn.execute(
         "UPDATE intake_forms SET form_data = ? WHERE id = ?",
         (json.dumps(form_data, ensure_ascii=False), submission_id),
     )
     conn.commit()
+    _persist_completion_state(
+        conn,
+        submission_id,
+        form_data,
+        completion_state,
+        notify_payload={
+            "full_name": form_data.get("fullName") or form_data.get("name") or "",
+            "visit_type": form_data.get("visitType") or "",
+            "age": form_data.get("age") or "",
+        },
+    )
     conn.close()
-
-    _broadcast_notification({
-        "submission_id": submission_id,
-        "type": "ehs_submitted",
-        "timestamp": time.strftime("%H:%M"),
-    })
 
     return jsonify({
         "message": "Erection Hardness Scale answers submitted successfully.",
         "submission_id": submission_id,
+        "codeNo": f"INT-{submission_id}",
+        "completion": completion_state,
     })
 
 
@@ -626,29 +757,34 @@ def submit_low_libido():
         conn.close()
         return jsonify({"error": f"Submission #{submission_id} not found"}), 404
 
-    try:
-        form_data = json.loads(row["form_data"] or "{}")
-    except json.JSONDecodeError:
-        form_data = {}
+    form_data = _load_form_data(row["form_data"])
 
     form_data["low_libido_data"] = low_libido_data
+    completion_state = _form_completion_state(form_data)
 
     conn.execute(
         "UPDATE intake_forms SET form_data = ? WHERE id = ?",
         (json.dumps(form_data, ensure_ascii=False), submission_id),
     )
     conn.commit()
+    _persist_completion_state(
+        conn,
+        submission_id,
+        form_data,
+        completion_state,
+        notify_payload={
+            "full_name": form_data.get("fullName") or form_data.get("name") or "",
+            "visit_type": form_data.get("visitType") or "",
+            "age": form_data.get("age") or "",
+        },
+    )
     conn.close()
-
-    _broadcast_notification({
-        "submission_id": submission_id,
-        "type": "low_libido_submitted",
-        "timestamp": time.strftime("%H:%M"),
-    })
 
     return jsonify({
         "message": "Low Libido questionnaire answers submitted successfully.",
         "submission_id": submission_id,
+        "codeNo": f"INT-{submission_id}",
+        "completion": completion_state,
     })
 
 
@@ -794,4 +930,6 @@ def clinical_agent_route():
 if __name__ == "__main__":
     init_db()
     debug_mode = os.environ.get("FLASK_DEBUG", "").strip().lower() in {"1", "true", "yes", "on"}
-    app.run(host="127.0.0.1", port=5000, debug=debug_mode, use_reloader=False)
+    host = os.environ.get("FLASK_HOST", "0.0.0.0").strip() or "0.0.0.0"
+    port = int(os.environ.get("FLASK_PORT", "5000"))
+    app.run(host=host, port=port, debug=debug_mode, use_reloader=False)
