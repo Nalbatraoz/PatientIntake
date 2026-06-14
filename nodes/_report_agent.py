@@ -646,6 +646,17 @@ def _shape_arabic(text, arabic_reshaper, get_display):
     return get_display(arabic_reshaper.reshape(text))
 
 
+def _arabic_font_status():
+    """Return the resolved Arabic font file paths used by the PDF writer."""
+    regular_font, bold_font = _arabic_font_paths()
+    return {
+        "regular": regular_font,
+        "bold": bold_font,
+        "regular_exists": os.path.exists(regular_font),
+        "bold_exists": os.path.exists(bold_font),
+    }
+
+
 def _arabic_wrapped_lines(text, width=72, prefix=""):
     """Wrap Arabic text before bidi shaping."""
     cleaned = _clean_unicode_text(text)
@@ -680,11 +691,11 @@ def _arabic_sections(report):
     ]
 
 
-def write_arabic_pdf(report, output_path):
+def write_arabic_pdf(report, output_path, *, font_paths=None):
     """Write an Arabic RTL PDF using ReportLab with embedded Arabic fonts."""
     os.makedirs(os.path.dirname(output_path), exist_ok=True)
     arabic_reshaper, get_display, colors, letter, pdfmetrics, TTFont, canvas = _load_arabic_pdf_libs()
-    regular_font, bold_font = _arabic_font_paths()
+    regular_font, bold_font = font_paths or _arabic_font_paths()
     pdfmetrics.registerFont(TTFont("ArabicRegular", regular_font))
     pdfmetrics.registerFont(TTFont("ArabicBold", bold_font))
 
@@ -783,8 +794,10 @@ def save_report_pdf(report, *, upload_dir, submission_id=None, patient_name=None
     filename = f"{filename_base}.pdf"
     relative_path = os.path.join("reports", date_folder, filename)
     absolute_path = os.path.join(upload_dir, relative_path)
+    font_status = None
     if arabic:
-        write_arabic_pdf(report or {}, absolute_path)
+        font_status = _arabic_font_status()
+        write_arabic_pdf(report or {}, absolute_path, font_paths=(font_status["regular"], font_status["bold"]))
     else:
         write_simple_pdf(_report_lines(report or {}), absolute_path)
     return {
@@ -792,4 +805,5 @@ def save_report_pdf(report, *, upload_dir, submission_id=None, patient_name=None
         "url": f"/uploads/{relative_path.replace(os.sep, '/')}",
         "filename": filename,
         "generated_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "font_status": font_status,
     }
