@@ -12,6 +12,7 @@ module.exports = {
       env: {
         FLASK_HOST: "0.0.0.0",
         FLASK_PORT: "5001",
+        APP_BASE_PATH: "/patient-intake",
         FLASK_DEBUG: "0",
 
         SUBMISSIONS_PASSWORD: "admin123",

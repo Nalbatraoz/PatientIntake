@@ -44,6 +44,34 @@ app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "frontend"))
 _notification_lock = threading.Lock()
 _notification_listeners = []
 
+_APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
+if _APP_BASE_PATH and _APP_BASE_PATH != "/":
+    _APP_BASE_PATH = "/" + _APP_BASE_PATH.strip("/")
+else:
+    _APP_BASE_PATH = ""
+
+
+class _PrefixMiddleware:
+    """Allow the app to live behind a reverse-proxy path prefix."""
+
+    def __init__(self, app, prefix):
+        self.app = app
+        self.prefix = prefix.rstrip("/")
+
+    def __call__(self, environ, start_response):
+        prefix = self.prefix
+        path_info = environ.get("PATH_INFO", "")
+        if prefix and (path_info == prefix or path_info.startswith(prefix + "/")):
+            environ["SCRIPT_NAME"] = environ.get("SCRIPT_NAME", "") + prefix
+            stripped = path_info[len(prefix):]
+            environ["PATH_INFO"] = stripped if stripped else "/"
+        return self.app(environ, start_response)
+
+
+if _APP_BASE_PATH:
+    app.config["APPLICATION_ROOT"] = _APP_BASE_PATH
+    app.wsgi_app = _PrefixMiddleware(app.wsgi_app, _APP_BASE_PATH)
+
 _COMPLAINT_TO_FORM_KEY = {
     "low_libido": "low_libido_data",
     "premature_ejaculation": "pedt_data",
