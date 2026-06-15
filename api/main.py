@@ -14,6 +14,7 @@ from api.utils import (
     BASE_DIR,
     FRONTEND_DIR,
     MAX_UPLOAD_FILES,
+    MAX_LOOKUP_NAMES,
     UPLOAD_DIR,
     build_label_flags,
     clamp_int,
@@ -525,6 +526,8 @@ def submissions():
         low_libido_data = form_data.pop("low_libido_data", None)
         report_pdf = (pipeline or {}).get("report_pdf") or {}
         uploaded_files = form_data.pop("uploadedFiles", None)
+        uploaded_drug_analysis = form_data.pop("uploadedDrugAnalysis", None)
+        uploaded_file_summary = form_data.pop("uploadedFileSummary", None)
         submission_id = row["id"]
         code_no = f"INT-{submission_id}"
         report_pdf_url = _resolve_report_pdf_url(report_pdf, code_no)
@@ -546,6 +549,8 @@ def submissions():
             "report_pdf_url": report_pdf_url,
             "report_pdf_error": report_pdf.get("error"),
             "uploaded_files": uploaded_files,
+            "uploaded_drug_analysis": uploaded_drug_analysis,
+            "uploaded_file_summary": uploaded_file_summary,
             "ai_summary_points": build_ai_summary_points(pipeline),
             "iief_data": iief_data,
             "pedt_data": pedt_data,
@@ -554,7 +559,7 @@ def submissions():
             "answers": [
                 {"key": str(key), "value": format_answer(value)}
                 for key, value in form_data.items()
-                if key not in ("clinical_pipeline", "completion", "iief_data", "pedt_data", "ehs_data", "low_libido_data", "uploadedFiles")
+                if key not in ("clinical_pipeline", "completion", "iief_data", "pedt_data", "ehs_data", "low_libido_data", "uploadedFiles", "uploadedDrugAnalysis", "uploadedFileSummary")
             ],
             "ai_html": render_ai_report(pipeline),
         })
@@ -567,6 +572,18 @@ def submit_form():
     data = request.json or {}
     initial_payload = dict(data)
     patient_password = str(data.get("patientPassword") or "").strip()
+
+    uploaded_file_summary = data.get("uploadedFileSummary")
+    has_uploaded_files = False
+    if isinstance(uploaded_file_summary, dict):
+        has_uploaded_files = bool(uploaded_file_summary.get("drugImages") or uploaded_file_summary.get("investigationFiles"))
+    elif isinstance(uploaded_file_summary, list):
+        has_uploaded_files = bool(uploaded_file_summary)
+    elif isinstance(uploaded_file_summary, str):
+        has_uploaded_files = uploaded_file_summary.strip() not in ("", "{}", "[]")
+
+    if has_uploaded_files and not data.get("uploadedDrugAnalysis"):
+        return jsonify({"error": "Please scan uploaded files before submitting."}), 400
 
     if data.get("patientStatus") == "first_time" and not patient_password:
         return jsonify({"error": "Patient password is required for first-time access."}), 400

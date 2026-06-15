@@ -684,14 +684,26 @@ async function scanDrugUploads() {
       method: "POST",
       body: formData,
     });
-    const result = await response.json();
-    if (!response.ok) throw new Error(result.error || "Scan failed.");
+    const rawResponse = await response.text();
+    let result = {};
+    try {
+      result = rawResponse ? JSON.parse(rawResponse) : {};
+    } catch {
+      if (!response.ok) {
+        throw new Error(rawResponse.slice(0, 300) || "Scan failed.");
+      }
+      throw new Error("Server returned an invalid response.");
+    }
+    if (!response.ok) throw new Error(result.error || rawResponse.slice(0, 300) || "Scan failed.");
 
     latestScanSignature = signature;
     latestScanResult = result;
     if (uploadedDrugAnalysisInput) uploadedDrugAnalysisInput.value = JSON.stringify(result);
     if (uploadedFilesInput) uploadedFilesInput.value = JSON.stringify(result.files || []);
-    renderScanResults(result);
+    if (scanResults) {
+      scanResults.hidden = true;
+      scanResults.innerHTML = "";
+    }
     scanStatus.textContent = result.message || "Scan complete / تم الفحص.";
     return true;
   } catch (error) {

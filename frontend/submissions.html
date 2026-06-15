@@ -130,6 +130,61 @@
                 </tr>
               </tbody>
             </table>
+            {% if submission.uploaded_drug_analysis %}
+              <div class="scan-details">
+                <h3 data-i18n-en="Scan Details" data-i18n-ar="تفاصيل الفحص">Scan Details</h3>
+                <table>
+                  <tbody>
+                    <tr>
+                      <th data-i18n-en="Scan Source" data-i18n-ar="مصدر الفحص">Scan Source</th>
+                      <td>{{ submission.uploaded_drug_analysis.scan_source or "manual_text" }}</td>
+                    </tr>
+                    <tr>
+                      <th data-i18n-en="Detected Medication Names" data-i18n-ar="أسماء الأدوية المكتشفة">Detected Medication Names</th>
+                      <td>
+                        {% if submission.uploaded_drug_analysis.drug_candidates %}
+                          {{ submission.uploaded_drug_analysis.drug_candidates | join(", ") }}
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th data-i18n-en="Image Description" data-i18n-ar="وصف الصورة">Image Description</th>
+                      <td>{{ submission.uploaded_drug_analysis.image_description or "-" }}</td>
+                    </tr>
+                    <tr>
+                      <th data-i18n-en="Notes" data-i18n-ar="ملاحظات">Notes</th>
+                      <td>
+                        {% if submission.uploaded_drug_analysis.notes %}
+                          <ul>
+                            {% for note in submission.uploaded_drug_analysis.notes %}
+                              <li>{{ note }}</li>
+                            {% endfor %}
+                          </ul>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                    <tr>
+                      <th data-i18n-en="Label Flags" data-i18n-ar="علامات التحذير">Label Flags</th>
+                      <td>
+                        {% if submission.uploaded_drug_analysis.label_flags %}
+                          <ul>
+                            {% for flag in submission.uploaded_drug_analysis.label_flags %}
+                              <li>{{ flag.message or flag.type }}</li>
+                            {% endfor %}
+                          </ul>
+                        {% else %}
+                          -
+                        {% endif %}
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            {% endif %}
           </div>
           {% endif %}
 
