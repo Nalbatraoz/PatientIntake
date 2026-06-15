@@ -2,11 +2,51 @@
 
 import os
 
-from core.rag_store import RAG_CHROMA_DIR, RAG_COLLECTION_NAME, RAG_SOURCE_DIR, index_rag_files
+from core.rag_store import (
+    RAG_CHROMA_DIR,
+    RAG_COLLECTION_NAME,
+    RAG_SOURCE_DIR,
+    build_clinical_context,
+    index_rag_files,
+)
+
+
+RAG_RETRIEVAL_SYSTEM_PROMPT = """
+You are a clinical retrieval assistant.
+
+Use the provided RAG tool to retrieve relevant passages from the indexed clinical document
+library. Return ONLY a valid JSON object. No markdown and no text outside JSON.
+
+Response format:
+{
+  "query": "original clinician query",
+  "sources": [
+    {
+      "citation": "filename, page, or source label returned by the tool",
+      "snippet": "short retrieved passage or grounded summary from the tool output",
+      "source_path": "source path when available"
+    }
+  ]
+}
+
+Rules:
+- Use the RAG tool before answering.
+- Do not answer from memory.
+- Do not invent citations, source paths, or medical facts.
+- Return up to the requested number of sources when available.
+- Keep snippets concise and clinician-facing.
+""".strip()
 
 
 def build_rag_tool(api_key):
     """Create a CrewAI RAG tool that indexes and searches the shared source directory."""
+    try:
+        from crewai_tools import DirectorySearchTool, RagTool
+    except ImportError as exc:
+        raise RuntimeError(
+            "crewai-tools is not installed. Install the project requirements, including crewai-tools."
+        ) from exc
+
     rag_config = {
         "vectordb": {
             "provider": "chromadb",
@@ -25,8 +65,6 @@ def build_rag_tool(api_key):
     }
 
     try:
-        from crewai_tools import RagTool
-
         rag_tool = RagTool(config=rag_config)
         add_method = getattr(rag_tool, "add", None)
         if callable(add_method):
@@ -36,13 +74,19 @@ def build_rag_tool(api_key):
                 add_method(path=RAG_SOURCE_DIR)
         return rag_tool
     except Exception:
-        from crewai_tools import DirectorySearchTool
-
         return DirectorySearchTool(
             directory=RAG_SOURCE_DIR,
             collection_name=RAG_COLLECTION_NAME,
             config=rag_config,
         )
+
+
+def retrieve_clinical_context(query, *, api_key, model_name="gemini-2.5-flash", top_k=6, timeout=45):
+    """Retrieve structured clinical context from the shared local RAG index."""
+    query = str(query or "").strip()
+    if not query:
+        raise RuntimeError("Clinical RAG query is empty.")
+    return build_clinical_context(query, top_k=top_k)
 
 
 def build_rag_agent(api_key, model_name="gemini-2.5-flash"):

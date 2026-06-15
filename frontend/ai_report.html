@@ -93,19 +93,16 @@
   <p class="ai-missing" data-i18n-en="No AI report available for this submission." data-i18n-ar="لا يوجد تقرير ذكاء اصطناعي لهذه الاستمارة.">No AI report available for this submission.</p>
 {% else %}
   {% set status = pipeline.get("status", "") %}
-  {% set stopped_after = pipeline.get("stopped_after", "") %}
   {% set badge_color = "#2e7d32" if status == "completed" else "#b71c1c" %}
   <div class="ai-status" style="background:{{ badge_color }}">
     <span data-i18n-en="Pipeline:" data-i18n-ar="المسار:">Pipeline:</span>
     {{ status|upper }}
-    -
-    <span data-i18n-en="stopped after:" data-i18n-ar="توقف بعد:">stopped after:</span>
-    {{ stopped_after }}
   </div>
 
   {% if pipeline.get("error") %}
     <div class="ai-flag">{{ pipeline.get("error") }}</div>
   {% else %}
+    {% set stopped_after = pipeline.get("stopped_after", "") %}
     {% set lifestyle = pipeline.get("lifestyle_agent", {}) %}
     {% if lifestyle %}
       {% set decision = lifestyle.get("decision", "") %}

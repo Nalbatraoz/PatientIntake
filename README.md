@@ -2,8 +2,7 @@
 
 A bilingual medical intake web app for collecting patient questionnaire data, medication details, medical history, investigation results, and uploaded medical files.
 
-The app is built with Flask, SQLite, HTML, CSS, and JavaScript. It includes optional medication lookup through openFDA, optional AI image scanning through OpenAI Vision, and optional DrugBank support when a DrugBank API key is available.
-It also includes a local RAG index for clinical books and guidelines using Gemini embeddings.
+The app is built with Flask, SQLite, HTML, CSS, and JavaScript. It includes optional medication lookup through openFDA, optional AI image scanning through OpenAI Vision, and a local RAG index for clinical books and guidelines using Gemini embeddings.
 
 ## Features
 
@@ -18,7 +17,6 @@ It also includes a local RAG index for clinical books and guidelines using Gemin
 - openFDA drug label lookup
 - Optional OpenAI Vision extraction from medication images
 - Optional local OCR fallback with Pillow and pytesseract
-- Optional DrugBank lookup when configured
 - Local PDF RAG index for clinical guideline retrieval and citations
 
 ## Project Structure
@@ -85,7 +83,6 @@ Supported keys:
 ```text
 OPENFDA_API_KEY=your_openfda_key
 OPENAI_API_KEY=your_openai_key
-DRUGBANK_API_KEY=your_drugbank_key
 GEMINI_API_KEY=your_gemini_key
 ```
 
@@ -150,7 +147,6 @@ The protected `/clinical-agent` endpoint uses Gemini as the reasoning layer over
 1. Local RAG guideline retrieval from `rag_vectors.db`.
 2. Medication name parsing from supplied medication/history text.
 3. openFDA drug label checks.
-4. Optional DrugBank checks when `DRUGBANK_API_KEY` is configured.
 5. Gemini-generated structured clinical review with citations, medication flags, and safety notes.
 
 The Gemini model defaults to `gemini-2.5-flash` and can be changed with:
@@ -188,7 +184,7 @@ When a patient submits the main questionnaire, the app now follows the clinical 
 1. Save the form to `intake.db`.
 2. Run the Gemini Lifestyle Agent.
 3. If lifestyle is sufficient to explain symptoms, stop and return the lifestyle report.
-4. If lifestyle is not sufficient, run medication checks through openFDA and optional DrugBank.
+4. If lifestyle is not sufficient, run medication checks through openFDA.
 5. Retrieve guideline context from the local vector database.
 6. Send medication and RAG evidence to the Gemini Clinical Agent.
 7. Search PubMed for relevant research papers.
@@ -213,8 +209,7 @@ When the user clicks `Scan Uploads`, the server:
 2. Extracts medication text from images if OpenAI Vision or local OCR is configured.
 3. Parses possible medication names from image text and manual medication text.
 4. Looks up drug label data through openFDA.
-5. Checks optional DrugBank data when `DRUGBANK_API_KEY` is set.
-6. Stores the scan result with the normal form submission.
+5. Stores the scan result with the normal form submission.
 
 The scan is for intake documentation support only. Clinicians must confirm all medication names, doses, warnings, allergies, and interactions before using them for care decisions.
 

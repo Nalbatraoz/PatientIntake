@@ -86,7 +86,7 @@ def run_full_clinical_pipeline(
     pipeline = {
         "workflow": [
             "lifestyle_agent",
-            "medication_check_and_vector_rag",
+            "medication_check_and_crewai_rag",
             "clinical_agent",
             "research_agent",
             "evidence_reviewer_agent",

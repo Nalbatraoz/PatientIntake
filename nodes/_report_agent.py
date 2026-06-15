@@ -157,7 +157,6 @@ def _compact_medication_checks(medication_checks):
         "drug_candidates": (medication_checks.get("drug_candidates") or [])[:6],
         "label_flags": (medication_checks.get("label_flags") or [])[:6],
         "openfda": openfda_rows,
-        "drugbank": _compact_json(medication_checks.get("drugbank") or {}, 1800),
     }
 
 

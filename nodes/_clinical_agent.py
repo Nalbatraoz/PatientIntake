@@ -7,7 +7,7 @@ from tools.crewai_agent_tools import run_crewai_json_agent
 CLINICAL_AGENT_SYSTEM_PROMPT = """
 You are a clinical research assistant supporting a licensed clinician.
 
-You will receive a structured evidence packet containing patient context, local RAG guideline
+You will receive a structured evidence packet containing patient context, CrewAI-retrieved guideline
 passages with citations, medication label checks, and safety flags.
 
 Return ONLY a valid JSON object. No markdown and no text outside the JSON.
@@ -59,7 +59,7 @@ def compact_openfda_results(openfda_results):
     ]
 
 
-# Purpose: combine patient context, local RAG passages, and medication checks.
+# Purpose: combine patient context, CrewAI RAG passages, and medication checks.
 def build_evidence_packet(inputs, rag_context, medication_checks):
     return {
         "patient_context": inputs,
@@ -71,7 +71,6 @@ def build_evidence_packet(inputs, rag_context, medication_checks):
         "medication_checks": {
             "drug_candidates": medication_checks.get("drug_candidates", []),
             "openfda": compact_openfda_results(medication_checks.get("openfda", [])),
-            "drugbank": medication_checks.get("drugbank", {}),
             "label_flags": medication_checks.get("label_flags", []),
         },
     }
@@ -84,8 +83,8 @@ def call_gemini_clinical_agent(evidence_packet, *, api_key, model_name, timeout=
         goal="Produce a clinician-facing structured memo using the supplied evidence packet and retrieved guideline passages.",
         backstory=CLINICAL_AGENT_SYSTEM_PROMPT,
         task_prompt=(
-            "Use the guideline passages and citations already included in the evidence packet. "
-            "Do not repeat retrieval work unless the packet is missing evidence. "
+            "Use the retrieved guideline passages and citations already included in the evidence packet. "
+            "Do not perform a second retrieval step. "
             "Integrate the supplied RAG context, medication checks, and safety flags directly into the JSON clinical memo.\n\n"
             f"{json.dumps(evidence_packet, ensure_ascii=False, indent=2)}"
         ),
@@ -105,6 +104,21 @@ def first_present(data, *keys, default=""):
         if value not in (None, ""):
             return value
     return default
+
+
+def summarize_choice_values(value):
+    """Convert checkbox/list values into readable clinician-facing text."""
+    if isinstance(value, str):
+        items = [item.strip() for item in value.split(",") if item.strip()]
+    elif isinstance(value, list):
+        items = [str(item).strip() for item in value if str(item).strip()]
+    else:
+        items = []
+
+    cleaned = []
+    for item in items:
+        cleaned.append(item.replace("_", " "))
+    return ", ".join(cleaned)
 
 
 def unique_names(names, limit):
@@ -180,6 +194,17 @@ def build_agent_inputs(data, dependencies):
         "history",
         "pastMedicalHistory",
     )
+    complaints = summarize_choice_values(merged.get("complaints") or merged.get("complaint"))
+    medical_conditions = summarize_choice_values(
+        merged.get("medicalConditions") or merged.get("medical_conditions")
+    )
+    allergies = ", ".join(
+        part for part in [
+            str(first_present(merged, "drugAllergies", "drug_allergies")).strip(),
+            str(first_present(merged, "otherAllergies", "other_allergies")).strip(),
+        ]
+        if part
+    )
     investigation_summary = first_present(
         merged,
         "investigation_summary",
@@ -188,6 +213,17 @@ def build_agent_inputs(data, dependencies):
         "investigationResults",
         "labs",
     )
+
+    if not medical_history:
+        history_parts = []
+        if complaints:
+            history_parts.append(f"Primary complaints: {complaints}")
+        if medical_conditions:
+            history_parts.append(f"Medical conditions: {medical_conditions}")
+        if allergies:
+            history_parts.append(f"Allergies: {allergies}")
+        medical_history = "; ".join(history_parts)
+
     clinical_question = str(first_present(
         merged,
         "query",
@@ -199,6 +235,7 @@ def build_agent_inputs(data, dependencies):
     patient_parts = [
         f"Age: {first_present(merged, 'age')}",
         f"Sex: {first_present(merged, 'sex', 'gender')}",
+        f"Complaints: {complaints}",
         f"Medical history: {medical_history}",
         f"Current medications: {current_medications}",
         f"Investigations: {investigation_summary}",
@@ -232,7 +269,7 @@ def build_clinical_agent_response(data, dependencies):
     if inputs["patient_context"]:
         rag_query = f"{rag_query}\n\nPatient context:\n{inputs['patient_context']}"
 
-    rag_context = dependencies["build_clinical_context"](rag_query, top_k=top_k)
+    rag_context = dependencies["retrieve_rag_context"](rag_query, top_k=top_k)
 
     explicit_drugs = data.get("drug_names") or data.get("drugNames") or []
     if isinstance(explicit_drugs, str):
@@ -247,7 +284,6 @@ def build_clinical_agent_response(data, dependencies):
         dependencies["lookup_openfda_label"](name)
         for name in drug_candidates
     ]
-    drugbank_result = dependencies["lookup_drugbank"](drug_candidates)
     label_flags = dependencies["build_label_flags"](
         openfda_results,
         inputs["current_medications"],
@@ -257,7 +293,6 @@ def build_clinical_agent_response(data, dependencies):
     medication_checks = {
         "drug_candidates": drug_candidates,
         "openfda": openfda_results,
-        "drugbank": drugbank_result,
         "label_flags": label_flags,
     }
     evidence_packet = build_evidence_packet(inputs, rag_context, medication_checks)
@@ -298,8 +333,9 @@ def build_clinical_agent_response(data, dependencies):
         },
         "notes": [
             "CrewAI reviewed the assembled RAG and medication evidence packet.",
+            "CrewAI RAG provided the guideline passages and citations included in this packet.",
             "Use retrieved source passages and citations to verify guideline support.",
             "Confirm medication names, doses, allergies, contraindications, and interactions with a licensed clinician.",
-            "openFDA and DrugBank results may be incomplete; absence of a flag is not proof of safety.",
+            "openFDA results may be incomplete; absence of a flag is not proof of safety.",
         ],
     }
