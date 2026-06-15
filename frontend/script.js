@@ -620,10 +620,6 @@ function renderScanResults(result) {
     `
     : "";
 
-  const drugBank = result.drugbank?.configured
-    ? `<p class="scan-meta">DrugBank lookup enabled / تم تفعيل بحث DrugBank. Interaction matches / عدد التداخلات: ${escapeHtml(result.drugbank.interactions?.length || 0)}</p>`
-    : `<p class="scan-meta">${escapeHtml(result.drugbank?.message || "DrugBank is not configured.")}</p>`;
-
   const notes = result.notes?.length
     ? `<ul class="scan-notes">${result.notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`
     : "";
@@ -634,13 +630,12 @@ function renderScanResults(result) {
         <h3>Detected Medication Names / أسماء الأدوية المكتشفة</h3>
         <ul>${candidates}</ul>
       </div>
-      <div>
-        <h3>Lookup Source / مصدر البحث</h3>
-        <p>${escapeHtml(result.scan_source || "manual_text")}</p>
-        ${drugBank}
+        <div>
+          <h3>Lookup Source / مصدر البحث</h3>
+          <p>${escapeHtml(result.scan_source || "manual_text")}</p>
+        </div>
       </div>
-    </div>
-    ${flags}
+      ${flags}
     <div class="scan-result-list">${openFdaItems}</div>
     ${notes}
   `;

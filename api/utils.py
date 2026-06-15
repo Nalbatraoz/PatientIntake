@@ -16,7 +16,7 @@ from core.agent_utils import compact_text as first_text
 from core.agent_utils import load_secret as read_secret
 from core.agent_utils import request_json
 from core.crew_orchestrator import run_full_clinical_pipeline as orchestrate_full_clinical_pipeline
-from core.rag_store import build_clinical_context
+from nodes.RAG_agent import retrieve_clinical_context
 import nodes.agents as clinical_agent_module
 from nodes.agents import (
     build_arabic_pdf_report,
@@ -60,7 +60,6 @@ def deployment_info():
 
 # Purpose: map the local APIkey file names accepted by the app.
 SECRET_ALIASES = {
-    "DRUGBANK_API_KEY": {"DRUGBANK_API_KEY", "DRUGBANK"},
     "GEMINI_API_KEY": {"GEMINI_API_KEY", "GOOGLE_API_KEY", "GEMINI", "GOOGLE"},
     "OPENFDA_API_KEY": {"OPENFDA_API_KEY", "OPEN_FDA_API_KEY", "OPENFDA", "FDA_API_KEY"},
 }
@@ -465,57 +464,6 @@ def extract_text_with_tesseract(saved_files):
         note = f"Some uploaded drug images could not be read by local OCR: {'; '.join(failures[:3])}"
     return {"observed_text": text, "drug_names": parse_possible_drug_names(text)}, note
 
-def lookup_drugbank(drug_names):
-    """Query DrugBank for product matches and possible interactions between parsed drugs."""
-    if not DRUGBANK_API_KEY:
-        return {
-            "configured": False,
-            "message": "DrugBank is not configured. Set DRUGBANK_API_KEY on the server to enable DrugBank lookups. / لم يتم إعداد DrugBank. أضف DRUGBANK_API_KEY على الخادم لتفعيل البحث.",
-        }
-
-    matches = []
-    product_concept_ids = []
-
-    for name in drug_names[:MAX_LOOKUP_NAMES]:
-        params = {"q": name, "region": DRUGBANK_REGION, "per_page": 3}
-        url = "https://api.drugbank.com/v1/product_concepts?" + urlencode(params)
-        try:
-            payload = request_json(url, headers={"Authorization": DRUGBANK_API_KEY})
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            matches.append({"query": name, "error": f"DrugBank lookup failed: {exc}"})
-            continue
-
-        items = payload if isinstance(payload, list) else payload.get("results", [])
-        simplified = []
-        for item in items[:3]:
-            product_id = item.get("drugbank_pcid") or item.get("id")
-            if product_id and product_id not in product_concept_ids:
-                product_concept_ids.append(product_id)
-            simplified.append({
-                "name": item.get("name") or item.get("display_name"),
-                "drugbank_pcid": product_id,
-                "brand": item.get("brand"),
-                "route": item.get("route"),
-                "form": item.get("form"),
-                "standing": item.get("standing"),
-            })
-        matches.append({"query": name, "matches": simplified})
-
-    interactions = []
-    if len(product_concept_ids) >= 2:
-        try:
-            interactions_payload = request_json(
-                "https://api.drugbank.com/v1/ddi",
-                method="POST",
-                headers={"Authorization": DRUGBANK_API_KEY},
-                body={"product_concept_id": product_concept_ids},
-            )
-            interactions = interactions_payload if isinstance(interactions_payload, list) else interactions_payload.get("interactions", [])
-        except (HTTPError, URLError, TimeoutError, json.JSONDecodeError) as exc:
-            interactions = [{"error": f"DrugBank interaction lookup failed: {exc}"}]
-
-    return {"configured": True, "matches": matches, "interactions": interactions[:20]}
-
 def build_label_flags(openfda_results, current_medications, medical_history):
     """Create review flags when openFDA label text mentions patient meds or history terms."""
     combined_context = f"{current_medications}\n{medical_history}".lower()
@@ -560,30 +508,26 @@ def build_label_flags(openfda_results, current_medications, medical_history):
 def clinical_agent_dependencies():
     """Package local helper functions so the external clinical agent module can call them."""
     return {
-        "build_clinical_context": safe_build_clinical_context,
         "build_label_flags": build_label_flags,
         "clamp_int": clamp_int,
         "get_db_connection": get_db_connection,
         "gemini_api_key": GEMINI_API_KEY,
         "gemini_clinical_model": GEMINI_CLINICAL_MODEL,
-        "lookup_drugbank": lookup_drugbank,
         "lookup_openfda_label": lookup_openfda_label,
         "max_lookup_names": MAX_LOOKUP_NAMES,
         "parse_possible_drug_names": parse_possible_drug_names,
+        "retrieve_rag_context": build_crewai_clinical_context,
         "safe_json_loads": safe_json_loads,
     }
 
-def safe_build_clinical_context(query, top_k=6):
-    """Return RAG context when available, or an empty context when deployment lacks a local index."""
-    try:
-        return build_clinical_context(query, top_k=top_k)
-    except RuntimeError as exc:
-        return {
-            "query": query,
-            "context": "",
-            "sources": [],
-            "error": str(exc),
-        }
+def build_crewai_clinical_context(query, top_k=6):
+    """Retrieve clinical context through the CrewAI RAG tool using the shared knowledge base."""
+    return retrieve_clinical_context(
+        query,
+        api_key=GEMINI_API_KEY,
+        model_name=GEMINI_CLINICAL_MODEL,
+        top_k=top_k,
+    )
 
 def run_full_clinical_pipeline(data, submission_id=None):
     """Run the diagrammed workflow through the core orchestrator."""

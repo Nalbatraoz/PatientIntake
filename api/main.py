@@ -15,7 +15,6 @@ from api.utils import (
     FRONTEND_DIR,
     MAX_UPLOAD_FILES,
     UPLOAD_DIR,
-    build_clinical_context,
     build_label_flags,
     clamp_int,
     clinical_agent_dependencies,
@@ -29,7 +28,6 @@ from api.utils import (
     init_db,
     build_ai_summary_points,
     first_text,
-    lookup_drugbank,
     lookup_openfda_label,
     parse_possible_drug_names,
     hash_patient_password,
@@ -39,7 +37,7 @@ from api.utils import (
     save_uploaded_file,
     submissions_authorized,
 )
-from core.rag_store import index_rag_files, rag_status, search_rag
+from core.rag_store import build_clinical_context, index_rag_files, rag_status, search_rag
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "frontend"))
 _notification_lock = threading.Lock()
@@ -420,7 +418,7 @@ def lookup_patient_code_with_password():
 
 @app.route("/scan-drugs", methods=["POST"])
 def scan_drugs():
-    """Handle medication image uploads, OCR them locally, and run openFDA/DrugBank checks."""
+    """Handle medication image uploads, OCR them, and run openFDA checks."""
     saved_files = []
     errors = []
 
@@ -470,7 +468,6 @@ def scan_drugs():
             break
 
     openfda_results = [lookup_openfda_label(name) for name in drug_candidates]
-    drugbank_result = lookup_drugbank(drug_candidates)
     label_flags = build_label_flags(openfda_results, current_medications, medical_history)
 
     notes = [
@@ -489,7 +486,6 @@ def scan_drugs():
         "extracted_text": extracted_text,
         "drug_candidates": drug_candidates,
         "openfda": openfda_results,
-        "drugbank": drugbank_result,
         "label_flags": label_flags,
         "notes": notes,
         "deployment": deployment_info(),

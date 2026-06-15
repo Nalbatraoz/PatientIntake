@@ -126,7 +126,6 @@ def compact_medication_checks(medication_checks):
         "drug_candidates": medication_checks.get("drug_candidates", []),
         "label_flags": medication_checks.get("label_flags", []),
         "openfda": compact_openfda_results(medication_checks.get("openfda", [])),
-        "drugbank_summary": _compact_json(medication_checks.get("drugbank", {}), 2500),
     }
 
 
