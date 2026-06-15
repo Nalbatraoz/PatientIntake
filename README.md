@@ -2,12 +2,8 @@
 
 A bilingual medical intake web app for collecting patient questionnaire data, medication details, medical history, investigation results, and uploaded medical files.
 
-<<<<<<< HEAD
 The app is built with Flask, SQLite, HTML, CSS, and JavaScript. It includes optional medication lookup through openFDA, local medication image OCR through Tesseract, and optional DrugBank support when a DrugBank API key is available.
 It also includes a local RAG index for clinical books and guidelines using Gemini embeddings.
-=======
-The app is built with Flask, SQLite, HTML, CSS, and JavaScript. It includes optional medication lookup through openFDA, optional AI image scanning through OpenAI Vision, and a local RAG index for clinical books and guidelines using Gemini embeddings.
->>>>>>> f798e4740f01b468f4676130c2d1a17b267b396b
 
 ## Features
 
@@ -296,6 +292,16 @@ On Ubuntu/Debian EC2 images:
 sudo apt-get update
 sudo apt-get install -y tesseract-ocr
 ```
+
+The app auto-detects Tesseract in this order:
+
+1. `TESSERACT_CMD` environment variable
+2. `tesseract` on PATH
+3. Common Windows install folders
+4. `/usr/bin/tesseract`
+5. `/usr/local/bin/tesseract`
+
+If `tesseract --version` works in the same environment that runs the app, no code change or `TESSERACT_CMD` setting is required.
 
 If Tesseract is not on PATH, set:
 

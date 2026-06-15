@@ -2,6 +2,7 @@ import hmac
 import json
 import os
 import re
+import shutil
 import sqlite3
 import uuid
 from datetime import datetime
@@ -46,6 +47,31 @@ except ImportError:
 
 if load_dotenv:
     load_dotenv(os.path.join(BASE_DIR, ".env"), override=False)
+
+
+TESSERACT_FALLBACK_PATHS = (
+    r"C:\Program Files\Tesseract-OCR\tesseract.exe",
+    r"C:\Program Files (x86)\Tesseract-OCR\tesseract.exe",
+    "/usr/bin/tesseract",
+    "/usr/local/bin/tesseract",
+)
+
+
+def resolve_tesseract_cmd():
+    """Find the Tesseract executable on Windows or Linux."""
+    configured = os.environ.get("TESSERACT_CMD", "").strip().strip('"')
+    if configured:
+        return configured
+
+    path_command = shutil.which("tesseract")
+    if path_command:
+        return path_command
+
+    for candidate in TESSERACT_FALLBACK_PATHS:
+        if os.path.exists(candidate):
+            return candidate
+
+    return ""
 
 
 def deployment_info():
@@ -94,7 +120,7 @@ GEMINI_CLINICAL_MODEL = os.environ.get("GEMINI_CLINICAL_MODEL", "gemini-2.5-flas
 GEMINI_RESEARCH_MODEL = os.environ.get("GEMINI_RESEARCH_MODEL", "gemini-2.5-flash")
 GEMINI_EVIDENCE_REVIEWER_MODEL = os.environ.get("GEMINI_EVIDENCE_REVIEWER_MODEL", "gemini-2.5-flash")
 GEMINI_REPORT_MODEL = os.environ.get("GEMINI_REPORT_MODEL", "gemini-2.5-flash")
-TESSERACT_CMD = os.environ.get("TESSERACT_CMD", "").strip()
+TESSERACT_CMD = resolve_tesseract_cmd()
 TESSERACT_LANG = os.environ.get("TESSERACT_LANG", "eng").strip() or "eng"
 TESSERACT_CONFIG = os.environ.get("TESSERACT_CONFIG", "").strip()
 
@@ -426,9 +452,11 @@ def extract_text_with_tesseract(saved_files):
     try:
         pytesseract.get_tesseract_version()
     except Exception as exc:
+        fallback_paths = ", ".join(TESSERACT_FALLBACK_PATHS)
         return None, (
             "Tesseract OCR executable was not found or could not run. Install tesseract-ocr "
             "on the server, keep it on PATH, or set TESSERACT_CMD to the executable path. "
+            f"Checked fallback paths: {fallback_paths}. "
             f"Error: {exc}"
         )
 
