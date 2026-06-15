@@ -20,11 +20,13 @@ from api.utils import (
     clinical_agent_dependencies,
     clinical_agent_module,
     deployment_info,
+    extract_text_with_gemini,
     extract_text_with_tesseract,
     format_answer,
     generate_next_patient_code,
     get_db_connection,
     get_patient_by_code,
+    has_useful_ocr_text,
     init_db,
     build_ai_summary_points,
     first_text,
@@ -440,19 +442,24 @@ def scan_drugs():
     medical_history = request.form.get("medicalHistory", "")
 
     has_drug_images = any(file_info.get("category") == "drug-images" for file_info in saved_files)
+    gemini_note = None
     ocr_note = None
     ocr_scan = None
 
     if has_drug_images:
         ocr_scan, ocr_note = extract_text_with_tesseract(saved_files)
+        if not has_useful_ocr_text(ocr_scan):
+            ocr_scan, gemini_note = extract_text_with_gemini(saved_files)
 
     extracted_text = ""
+    extracted_description = ""
     extracted_names = []
     scan_source = "manual_text"
 
     if ocr_scan:
-        scan_source = "local_ocr"
+        scan_source = "gemini_vision" if gemini_note else "local_ocr"
         extracted_text = first_text(ocr_scan.get("observed_text"), 2000)
+        extracted_description = first_text(ocr_scan.get("image_description"), 1000)
         extracted_names = [
             str(name).strip()
             for name in ocr_scan.get("drug_names", [])
@@ -474,7 +481,7 @@ def scan_drugs():
         "This scan supports intake review only and is not a diagnosis, prescription, or medication-safety decision. / هذا الفحص لمراجعة بيانات الاستبيان فقط وليس تشخيصًا أو وصفة أو قرارًا علاجيًا.",
         "Confirm all detected medication names, strengths, and warnings with a licensed clinician. / يجب تأكيد أسماء الأدوية والجرعات والتحذيرات مع طبيب مختص.",
     ]
-    for note in (ocr_note,):
+    for note in (ocr_note, gemini_note):
         if note:
             notes.append(note)
     notes.extend(errors)
@@ -484,6 +491,7 @@ def scan_drugs():
         "files": saved_files,
         "scan_source": scan_source,
         "extracted_text": extracted_text,
+        "image_description": extracted_description,
         "drug_candidates": drug_candidates,
         "openfda": openfda_results,
         "label_flags": label_flags,

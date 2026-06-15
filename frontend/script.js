@@ -620,6 +620,15 @@ function renderScanResults(result) {
     `
     : "";
 
+  const imageDescription = result.image_description
+    ? `
+      <div class="scan-alerts">
+        <h3>Image Description / وصف الصورة</h3>
+        <p>${escapeHtml(result.image_description)}</p>
+      </div>
+    `
+    : "";
+
   const notes = result.notes?.length
     ? `<ul class="scan-notes">${result.notes.map(note => `<li>${escapeHtml(note)}</li>`).join("")}</ul>`
     : "";
@@ -636,6 +645,7 @@ function renderScanResults(result) {
         </div>
       </div>
       ${flags}
+      ${imageDescription}
     <div class="scan-result-list">${openFdaItems}</div>
     ${notes}
   `;

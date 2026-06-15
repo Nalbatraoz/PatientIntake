@@ -17,6 +17,7 @@ It also includes a local RAG index for clinical books and guidelines using Gemin
 - Medical history and investigation result summaries
 - openFDA drug label lookup
 - Local OCR extraction from medication images with Tesseract, Pillow, and pytesseract
+- Gemini `gemini-2.5-flash-lite` image fallback when local OCR cannot read useful text
 - Optional DrugBank lookup when configured
 - Local PDF RAG index for clinical guideline retrieval and citations
 
@@ -207,9 +208,10 @@ When the user clicks `Scan Uploads`, the server:
 
 1. Saves uploaded files under `uploads/`.
 2. Extracts medication text from drug/package images with local Tesseract OCR.
-3. Parses possible medication names from image text and manual medication text.
-4. Looks up drug label data through openFDA.
-5. Stores the scan result with the normal form submission.
+3. If local OCR does not return useful text, asks Gemini `gemini-2.5-flash-lite` to describe the image and extract visible label text.
+4. Parses possible medication names from image text and manual medication text.
+5. Looks up drug label data through openFDA.
+6. Stores the scan result with the normal form submission.
 
 The scan is for intake documentation support only. Clinicians must confirm all medication names, doses, warnings, allergies, and interactions before using them for care decisions.
 
@@ -321,7 +323,13 @@ For Arabic OCR, install the Arabic language data on the server and set:
 TESSERACT_LANG=eng+ara
 ```
 
-If OCR is not installed, the app still supports manual medication text and openFDA lookup.
+If local OCR is not installed and Gemini fallback is not configured, the app still supports manual medication text and openFDA lookup.
+
+When Tesseract runs but does not return useful text, the app can fall back to Gemini image extraction. This uses the existing `GEMINI_API_KEY` and defaults to:
+
+```text
+GEMINI_OCR_MODEL=gemini-2.5-flash-lite
+```
 
 ## Development Notes
 

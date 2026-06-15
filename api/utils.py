@@ -1,4 +1,6 @@
+import base64
 import hmac
+import io
 import json
 import os
 import re
@@ -15,7 +17,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 
 from core.agent_utils import compact_text as first_text
 from core.agent_utils import load_secret as read_secret
-from core.agent_utils import request_json
+from core.agent_utils import gemini_model_resource, gemini_text, parse_json_object, request_json
 from core.crew_orchestrator import run_full_clinical_pipeline as orchestrate_full_clinical_pipeline
 from nodes.RAG_agent import retrieve_clinical_context
 import nodes.agents as clinical_agent_module
@@ -120,6 +122,7 @@ GEMINI_CLINICAL_MODEL = os.environ.get("GEMINI_CLINICAL_MODEL", "gemini-2.5-flas
 GEMINI_RESEARCH_MODEL = os.environ.get("GEMINI_RESEARCH_MODEL", "gemini-2.5-flash")
 GEMINI_EVIDENCE_REVIEWER_MODEL = os.environ.get("GEMINI_EVIDENCE_REVIEWER_MODEL", "gemini-2.5-flash")
 GEMINI_REPORT_MODEL = os.environ.get("GEMINI_REPORT_MODEL", "gemini-2.5-flash")
+GEMINI_OCR_MODEL = os.environ.get("GEMINI_OCR_MODEL", "gemini-2.5-flash-lite")
 TESSERACT_CMD = resolve_tesseract_cmd()
 TESSERACT_LANG = os.environ.get("TESSERACT_LANG", "eng").strip() or "eng"
 TESSERACT_CONFIG = os.environ.get("TESSERACT_CONFIG", "").strip()
@@ -438,6 +441,13 @@ def parse_possible_drug_names(*texts):
 
     return candidates
 
+def has_useful_ocr_text(scan):
+    """Return True when an OCR result has enough readable text to trust."""
+    if not isinstance(scan, dict):
+        return False
+    text = f"{scan.get('observed_text') or ''}\n{scan.get('image_description') or ''}"
+    return sum(1 for char in text if char.isalnum()) >= 3
+
 def extract_text_with_tesseract(saved_files):
     """Use local Tesseract OCR to read text from uploaded drug images."""
     try:
@@ -491,6 +501,93 @@ def extract_text_with_tesseract(saved_files):
     if failures:
         note = f"Some uploaded drug images could not be read by local OCR: {'; '.join(failures[:3])}"
     return {"observed_text": text, "drug_names": parse_possible_drug_names(text)}, note
+
+def encode_image_for_gemini(file_path):
+    """Convert any accepted upload image into a Gemini-compatible JPEG part."""
+    from PIL import Image
+
+    with Image.open(file_path) as image:
+        image.thumbnail((1600, 1600))
+        if image.mode in {"RGBA", "LA"}:
+            background = Image.new("RGB", image.size, "white")
+            alpha = image.getchannel("A")
+            background.paste(image, mask=alpha)
+            image = background
+        else:
+            image = image.convert("RGB")
+
+        buffer = io.BytesIO()
+        image.save(buffer, format="JPEG", quality=90)
+
+    return {
+        "inline_data": {
+            "mime_type": "image/jpeg",
+            "data": base64.b64encode(buffer.getvalue()).decode("ascii"),
+        }
+    }
+
+def extract_text_with_gemini(saved_files):
+    """Use Gemini vision when local OCR cannot extract useful medication text."""
+    if not GEMINI_API_KEY:
+        return None, "Gemini OCR fallback is not configured. Set GEMINI_API_KEY to enable image fallback."
+
+    image_parts = []
+    failures = []
+    for file_info in saved_files:
+        if file_info.get("category") != "drug-images":
+            continue
+        if file_info.get("extension", "").lower() not in ALLOWED_IMAGE_EXTENSIONS:
+            continue
+        try:
+            file_path = os.path.join(UPLOAD_DIR, file_info["relative_path"])
+            image_parts.append(encode_image_for_gemini(file_path))
+        except Exception as exc:
+            failures.append(f"{file_info.get('original_name')}: {exc}")
+
+    if not image_parts:
+        note = "Gemini OCR fallback did not receive a readable drug image."
+        if failures:
+            note = f"{note} Image errors: {'; '.join(failures[:3])}"
+        return None, note
+
+    prompt = (
+        "Local OCR did not extract useful text from these drug or package images. "
+        "Inspect the images and return JSON only with these keys: "
+        "drug_names (array of visible medication names), observed_text (string with exact visible label text), "
+        "image_description (short description of the package, pill, or label), strengths (array), "
+        "dosage_forms (array), manufacturer_or_ndc (array), confidence_notes (string). "
+        "Do not diagnose, prescribe, or infer medication details that are not visible."
+    )
+    body = {
+        "contents": [{
+            "role": "user",
+            "parts": [{"text": prompt}] + image_parts,
+        }],
+        "generationConfig": {
+            "temperature": 0.1,
+            "maxOutputTokens": 2048,
+            "responseMimeType": "application/json",
+        },
+    }
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/"
+        f"{gemini_model_resource(GEMINI_OCR_MODEL)}:generateContent?key={GEMINI_API_KEY}"
+    )
+
+    try:
+        payload = request_json(url, method="POST", body=body, timeout=45)
+        text = gemini_text(payload)
+        scan = parse_json_object(text, fallback={}) or {"observed_text": text}
+    except (HTTPError, URLError, TimeoutError, json.JSONDecodeError, RuntimeError) as exc:
+        return None, f"Gemini OCR fallback failed: {exc}"
+
+    if not has_useful_ocr_text(scan):
+        return None, "Gemini OCR fallback did not extract useful text from the uploaded drug images."
+
+    note = f"Local OCR did not return useful text, so Gemini fallback used {GEMINI_OCR_MODEL}."
+    if failures:
+        note = f"{note} Some images could not be prepared: {'; '.join(failures[:3])}"
+    return scan, note
 
 def build_label_flags(openfda_results, current_medications, medical_history):
     """Create review flags when openFDA label text mentions patient meds or history terms."""
