@@ -2,6 +2,7 @@ from flask import Flask, request, jsonify, render_template, send_from_directory,
 from flask_cors import CORS
 import json
 import glob
+import logging
 import os
 import queue
 import re
@@ -41,11 +42,13 @@ from api.utils import (
     save_uploaded_file,
     storage_content_type,
     storage_file_exists,
+    storage_status,
     submissions_authorized,
 )
 from core.rag_store import build_clinical_context, index_rag_files, rag_status, search_rag
 
 app = Flask(__name__, template_folder=os.path.join(BASE_DIR, "frontend"))
+logger = logging.getLogger("patient_intake.app")
 _notification_lock = threading.Lock()
 _notification_listeners = []
 
@@ -349,8 +352,15 @@ def uploaded_file(filename):
     if not storage_file_exists(resolved_path):
         return Response("Report PDF not found.", 404)
 
+    file_bytes = read_storage_bytes(resolved_path)
+    logger.info(
+        "[uploads] serving path=%s bytes=%s content_type=%s",
+        resolved_path,
+        len(file_bytes or b""),
+        storage_content_type(resolved_path),
+    )
     response = Response(
-        read_storage_bytes(resolved_path),
+        file_bytes,
         mimetype=storage_content_type(resolved_path),
     )
     response.headers["Content-Disposition"] = f'inline; filename="{os.path.basename(resolved_path)}"'
@@ -426,6 +436,7 @@ def scan_drugs():
     """Handle medication image uploads, OCR them, and run openFDA checks."""
     saved_files = []
     errors = []
+    storage_failed = False
 
     upload_groups = [
         ("drugImages", "drug-images", ALLOWED_IMAGE_EXTENSIONS),
@@ -440,6 +451,31 @@ def scan_drugs():
                     saved_files.append(saved)
             except ValueError as exc:
                 errors.append(str(exc))
+                logger.warning("[scan-drugs] rejected upload category=%s reason=%s", category, exc)
+            except Exception as exc:
+                storage_failed = True
+                errors.append(f"{file_obj.filename or 'upload'} could not be stored: {exc}")
+                logger.exception(
+                    "[scan-drugs] upload storage failed category=%s filename=%s error_type=%s",
+                    category,
+                    file_obj.filename or "(unnamed)",
+                    exc.__class__.__name__,
+                )
+
+    if storage_failed:
+        return jsonify({
+            "error": "One or more uploads could not be stored.",
+            "errors": errors,
+            "storage": storage_status(check_remote=True),
+            "deployment": deployment_info(),
+        }), 500
+
+    logger.info(
+        "[scan-drugs] upload phase complete files=%s errors=%s storage=%s",
+        len(saved_files),
+        len(errors),
+        storage_status(check_remote=False),
+    )
 
     current_medications = request.form.get("currentMedications", "")
     medical_history = request.form.get("medicalHistory", "")
@@ -524,6 +560,8 @@ def scan_drugs():
         "openfda": openfda_results,
         "label_flags": label_flags,
         "notes": notes,
+        "errors": errors,
+        "storage": storage_status(check_remote=False),
         "deployment": deployment_info(),
     })
  
@@ -952,6 +990,19 @@ def rag_status_route():
     status = rag_status()
     status["deployment"] = deployment_info()
     return jsonify(status)
+
+
+@app.route("/storage/status")
+def storage_status_route():
+    """Return safe upload-storage diagnostics for deployment checks."""
+    if not submissions_authorized():
+        return password_required_response()
+
+    return jsonify({
+        "storage": storage_status(check_remote=True),
+        "deployment": deployment_info(),
+    })
+
 
 @app.route("/rag/index", methods=["POST"])
 def rag_index_route():
