@@ -68,3 +68,4 @@ temp/
 # PM2 runtime artifacts
 .pm2/
 pm2*.log
+Azure Blob Storage Creds*.md

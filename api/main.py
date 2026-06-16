@@ -36,8 +36,11 @@ from api.utils import (
     hash_patient_password,
     password_required_response,
     render_ai_report,
+    read_storage_bytes,
     run_full_clinical_pipeline,
     save_uploaded_file,
+    storage_content_type,
+    storage_file_exists,
     submissions_authorized,
 )
 from core.rag_store import build_clinical_context, index_rag_files, rag_status, search_rag
@@ -176,7 +179,7 @@ def _public_upload_url(relative_path):
 
 
 def _resolve_report_pdf_url(report_pdf, code_no):
-    """Return a report PDF URL only when a real file exists on disk."""
+    """Return a report PDF URL only when a real file exists in configured storage."""
     report_pdf = report_pdf or {}
     candidate_paths = []
 
@@ -191,8 +194,7 @@ def _resolve_report_pdf_url(report_pdf, code_no):
         candidate_paths.append(url.removeprefix(f"{_APP_BASE_PATH}/uploads/"))
 
     for relative in candidate_paths:
-        full_path = os.path.join(UPLOAD_DIR, relative)
-        if os.path.exists(full_path):
+        if storage_file_exists(relative):
             return _public_upload_url(relative)
 
     code_token = str(code_no or "").strip()
@@ -317,19 +319,17 @@ def clinical_agent_test_js():
 @app.route("/uploads/<path:filename>")
 def uploaded_file(filename):
     """Serve a protected uploaded file after validating the requested path is safe."""
-    normalized = os.path.normpath(filename)
+    normalized = os.path.normpath(filename).replace("\\", "/")
     if normalized.startswith("..") or os.path.isabs(normalized):
         return Response("Invalid upload path.", 400)
 
-    is_report_pdf = normalized.replace("\\", "/").startswith("reports/")
+    is_report_pdf = normalized.startswith("reports/")
     if not is_report_pdf and not submissions_authorized():
         return password_required_response()
 
-    directory = os.path.join(UPLOAD_DIR, os.path.dirname(normalized))
-    basename = os.path.basename(normalized)
-    full_path = os.path.join(directory, basename)
-
-    if not os.path.exists(full_path) and is_report_pdf:
+    resolved_path = normalized
+    if not storage_file_exists(resolved_path) and is_report_pdf:
+        basename = os.path.basename(normalized)
         report_match = re.search(r"INT-[A-Za-z0-9_-]+", basename, re.IGNORECASE)
         if report_match:
             code_token = report_match.group(0)
@@ -343,15 +343,17 @@ def uploaded_file(filename):
                     glob.glob(os.path.join(UPLOAD_DIR, "reports", "**", pattern), recursive=True)
                 )
                 if matches:
-                    directory = os.path.dirname(matches[0])
-                    basename = os.path.basename(matches[0])
-                    full_path = matches[0]
+                    resolved_path = os.path.relpath(matches[0], UPLOAD_DIR).replace("\\", "/")
                     break
 
-    if not os.path.exists(full_path):
+    if not storage_file_exists(resolved_path):
         return Response("Report PDF not found.", 404)
 
-    response = send_from_directory(directory, basename)
+    response = Response(
+        read_storage_bytes(resolved_path),
+        mimetype=storage_content_type(resolved_path),
+    )
+    response.headers["Content-Disposition"] = f'inline; filename="{os.path.basename(resolved_path)}"'
     if is_report_pdf:
         response.headers["Cache-Control"] = "no-store, max-age=0"
     return response

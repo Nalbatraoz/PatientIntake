@@ -2,10 +2,12 @@ import base64
 import hmac
 import io
 import json
+import mimetypes
 import os
 import re
 import shutil
 import sqlite3
+import tempfile
 import uuid
 from datetime import datetime
 from urllib.error import HTTPError, URLError
@@ -27,21 +29,11 @@ from nodes.agents import (
     run_lifestyle_agent,
     run_report_agent,
     run_research_agent,
-    save_report_pdf,
+    save_report_pdf as save_report_pdf_to_disk,
 )
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
-DB_PATH = os.environ.get("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
-STORAGE_BACKEND = os.environ.get("STORAGE_BACKEND") or "local_filesystem"
-STORAGE_IS_EPHEMERAL = False
-APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
-if APP_BASE_PATH and APP_BASE_PATH != "/":
-    APP_BASE_PATH = "/" + APP_BASE_PATH.strip("/")
-else:
-    APP_BASE_PATH = ""
-
 try:
     from dotenv import load_dotenv
 except ImportError:
@@ -49,6 +41,29 @@ except ImportError:
 
 if load_dotenv:
     load_dotenv(os.path.join(BASE_DIR, ".env"), override=False)
+
+DB_PATH = os.environ.get("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
+UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
+STORAGE_BACKEND = (os.environ.get("STORAGE_BACKEND") or "local_filesystem").strip().lower()
+STORAGE_IS_EPHEMERAL = False
+AZURE_STORAGE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING", "").strip()
+AZURE_ACCOUNT_NAME = os.environ.get("AZURE_ACCOUNT_NAME", "").strip()
+AZURE_ACCOUNT_KEY = os.environ.get("AZURE_ACCOUNT_KEY", "").strip()
+AZURE_STORAGE_CONTAINER = (
+    os.environ.get("AZURE_STORAGE_CONTAINER")
+    or os.environ.get("AZURE_BLOB_CONTAINER")
+    or os.environ.get("BLOB_NAME")
+    or ""
+).strip()
+APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
+if APP_BASE_PATH and APP_BASE_PATH != "/":
+    APP_BASE_PATH = "/" + APP_BASE_PATH.strip("/")
+else:
+    APP_BASE_PATH = ""
+
+
+_azure_blob_service_client = None
+_azure_container_ready = False
 
 
 TESSERACT_FALLBACK_PATHS = (
@@ -84,6 +99,7 @@ def deployment_info():
         "storage_ephemeral": STORAGE_IS_EPHEMERAL,
         "database_path": DB_PATH,
         "upload_dir": UPLOAD_DIR,
+        "azure_container": AZURE_STORAGE_CONTAINER if is_azure_storage_enabled() else "",
     }
 
 # Purpose: map the local APIkey file names accepted by the app.
@@ -112,6 +128,135 @@ def public_upload_url(relative_path):
     if prefix:
         return f"{prefix}/uploads/{relative_path}"
     return f"/uploads/{relative_path}"
+
+
+def is_azure_storage_enabled():
+    """Return True when uploaded files should be stored in Azure Blob Storage."""
+    return STORAGE_BACKEND in {"azure", "azure_blob", "azure-blob", "blob"}
+
+
+def _normalize_blob_name(relative_path):
+    blob_name = str(relative_path or "").replace("\\", "/").lstrip("/")
+    if not blob_name or blob_name.startswith("../") or "/../" in f"/{blob_name}":
+        raise ValueError("Invalid upload path.")
+    return blob_name
+
+
+def _clean_azure_connection_string(value):
+    """Normalize common copy/paste artifacts from credential notes."""
+    value = str(value or "").strip().strip("\"'")
+    value = value.replace("[EndpointSuffix=core.windows.net](http://EndpointSuffix=core.windows.net)", "EndpointSuffix=core.windows.net")
+    value = value.replace("[EndpointSuffix=core.windows.net](https://EndpointSuffix=core.windows.net)", "EndpointSuffix=core.windows.net")
+    return value
+
+
+def _azure_service_client():
+    """Create the Azure Blob client lazily so local storage works without Azure packages."""
+    global _azure_blob_service_client
+    if _azure_blob_service_client is not None:
+        return _azure_blob_service_client
+
+    try:
+        from azure.storage.blob import BlobServiceClient
+    except ImportError as exc:
+        raise RuntimeError("azure-storage-blob is not installed. Run pip install -r requirements.txt.") from exc
+
+    connection_string = _clean_azure_connection_string(AZURE_STORAGE_CONNECTION_STRING)
+    if connection_string:
+        _azure_blob_service_client = BlobServiceClient.from_connection_string(connection_string)
+        return _azure_blob_service_client
+
+    if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
+        account_url = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
+        _azure_blob_service_client = BlobServiceClient(account_url=account_url, credential=AZURE_ACCOUNT_KEY)
+        return _azure_blob_service_client
+
+    raise RuntimeError(
+        "Azure Blob Storage is enabled but credentials are missing. Set "
+        "AZURE_STORAGE_CONNECTION_STRING or AZURE_ACCOUNT_NAME/AZURE_ACCOUNT_KEY."
+    )
+
+
+def _azure_container_client():
+    """Return a container client and create the container if needed."""
+    global _azure_container_ready
+    if not AZURE_STORAGE_CONTAINER:
+        raise RuntimeError("Azure Blob Storage is enabled but AZURE_STORAGE_CONTAINER is not configured.")
+
+    container_client = _azure_service_client().get_container_client(AZURE_STORAGE_CONTAINER)
+    if not _azure_container_ready:
+        try:
+            container_client.create_container()
+        except Exception as exc:
+            if exc.__class__.__name__ not in {"ResourceExistsError", "ContainerAlreadyExists"}:
+                raise
+        _azure_container_ready = True
+    return container_client
+
+
+def upload_storage_bytes(relative_path, contents, *, content_type="application/octet-stream"):
+    """Store upload bytes in the configured backend."""
+    blob_name = _normalize_blob_name(relative_path)
+    content_type = content_type or mimetypes.guess_type(blob_name)[0] or "application/octet-stream"
+
+    if is_azure_storage_enabled():
+        try:
+            from azure.storage.blob import ContentSettings
+        except ImportError as exc:
+            raise RuntimeError("azure-storage-blob is not installed. Run pip install -r requirements.txt.") from exc
+
+        blob_client = _azure_container_client().get_blob_client(blob_name)
+        blob_client.upload_blob(
+            contents,
+            overwrite=True,
+            content_settings=ContentSettings(content_type=content_type),
+        )
+        return
+
+    destination_path = os.path.join(UPLOAD_DIR, blob_name)
+    os.makedirs(os.path.dirname(destination_path), exist_ok=True)
+    with open(destination_path, "wb") as file_obj:
+        file_obj.write(contents)
+
+
+def read_storage_bytes(relative_path):
+    """Read upload bytes from the configured backend."""
+    blob_name = _normalize_blob_name(relative_path)
+    local_path = os.path.join(UPLOAD_DIR, blob_name)
+    if is_azure_storage_enabled():
+        try:
+            blob_client = _azure_container_client().get_blob_client(blob_name)
+            return blob_client.download_blob().readall()
+        except Exception:
+            if os.path.exists(local_path):
+                with open(local_path, "rb") as file_obj:
+                    return file_obj.read()
+            raise
+
+    with open(local_path, "rb") as file_obj:
+        return file_obj.read()
+
+
+def storage_file_exists(relative_path):
+    """Return whether an upload exists in the configured backend."""
+    try:
+        blob_name = _normalize_blob_name(relative_path)
+    except ValueError:
+        return False
+
+    if is_azure_storage_enabled():
+        try:
+            if _azure_container_client().get_blob_client(blob_name).exists():
+                return True
+        except Exception:
+            pass
+
+    return os.path.exists(os.path.join(UPLOAD_DIR, blob_name))
+
+
+def storage_content_type(relative_path, fallback="application/octet-stream"):
+    """Guess an upload's MIME type from its path."""
+    return mimetypes.guess_type(str(relative_path or ""))[0] or fallback
 
 SUBMISSIONS_PASSWORD = os.environ.get("SUBMISSIONS_PASSWORD", "Doctor")
 OPENFDA_API_KEY = load_secret("OPENFDA_API_KEY")
@@ -270,8 +415,9 @@ def format_answer(value):
         links = []
         for item in value:
             url = str(item.get("url", ""))
+            prefix = f"{APP_BASE_PATH}/uploads/" if APP_BASE_PATH else "/uploads/"
             links.append({
-                "url": url if url.startswith("/uploads/") else "",
+                "url": url if url.startswith(prefix) or url.startswith("/uploads/") else "",
                 "name": str(item.get("original_name") or item.get("stored_name") or "Uploaded file"),
             })
         return {"type": "links", "links": links}
@@ -324,23 +470,25 @@ def save_uploaded_file(file_obj, category, allowed_extensions):
     date_folder = datetime.utcnow().strftime("%Y%m%d")
     stored_name = f"{uuid.uuid4().hex}.{ext}"
     relative_path = os.path.join(category, date_folder, stored_name)
-    destination_dir = os.path.join(UPLOAD_DIR, category, date_folder)
-    os.makedirs(destination_dir, exist_ok=True)
-    destination_path = os.path.join(destination_dir, stored_name)
-    file_obj.save(destination_path)
+    relative_path_normalized = relative_path.replace(os.sep, "/")
+    contents = file_obj.read()
+    content_type = file_obj.mimetype or mimetypes.guess_type(original_name)[0] or "application/octet-stream"
+    upload_storage_bytes(relative_path_normalized, contents, content_type=content_type)
 
     return {
         "category": category,
         "original_name": original_name,
         "stored_name": stored_name,
-        "relative_path": relative_path.replace(os.sep, "/"),
+        "relative_path": relative_path_normalized,
         "url": public_upload_url(relative_path),
-        "size": os.path.getsize(destination_path),
-        "content_type": file_obj.mimetype or "",
+        "size": len(contents),
+        "content_type": content_type,
         "extension": ext,
         "saved_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
         "storage_backend": STORAGE_BACKEND,
         "ephemeral": STORAGE_IS_EPHEMERAL,
+        "blob_container": AZURE_STORAGE_CONTAINER if is_azure_storage_enabled() else "",
+        "blob_name": relative_path_normalized if is_azure_storage_enabled() else "",
     }
 
 def list_value(value):
@@ -478,8 +626,8 @@ def extract_text_with_tesseract(saved_files):
         if file_info.get("extension", "").lower() not in ALLOWED_IMAGE_EXTENSIONS:
             continue
         try:
-            file_path = os.path.join(UPLOAD_DIR, file_info["relative_path"])
-            with Image.open(file_path) as image:
+            image_bytes = read_storage_bytes(file_info["relative_path"])
+            with Image.open(io.BytesIO(image_bytes)) as image:
                 text_parts.append(
                     pytesseract.image_to_string(
                         image.convert("RGB"),
@@ -502,11 +650,11 @@ def extract_text_with_tesseract(saved_files):
         note = f"Some uploaded drug images could not be read by local OCR: {'; '.join(failures[:3])}"
     return {"observed_text": text, "drug_names": parse_possible_drug_names(text)}, note
 
-def encode_image_for_gemini(file_path):
+def encode_image_for_gemini(image_bytes):
     """Convert any accepted upload image into a Gemini-compatible JPEG part."""
     from PIL import Image
 
-    with Image.open(file_path) as image:
+    with Image.open(io.BytesIO(image_bytes)) as image:
         image.thumbnail((1600, 1600))
         if image.mode in {"RGBA", "LA"}:
             background = Image.new("RGB", image.size, "white")
@@ -539,8 +687,8 @@ def extract_text_with_gemini(saved_files):
         if file_info.get("extension", "").lower() not in ALLOWED_IMAGE_EXTENSIONS:
             continue
         try:
-            file_path = os.path.join(UPLOAD_DIR, file_info["relative_path"])
-            image_parts.append(encode_image_for_gemini(file_path))
+            image_bytes = read_storage_bytes(file_info["relative_path"])
+            image_parts.append(encode_image_for_gemini(image_bytes))
         except Exception as exc:
             failures.append(f"{file_info.get('original_name')}: {exc}")
 
@@ -653,6 +801,40 @@ def build_crewai_clinical_context(query, top_k=6):
         model_name=GEMINI_CLINICAL_MODEL,
         top_k=top_k,
     )
+
+
+def save_report_pdf(report, *, upload_dir, submission_id=None, patient_name=None, code_no=None, arabic=False):
+    """Save a generated report PDF through the configured upload storage backend."""
+    if not is_azure_storage_enabled():
+        return save_report_pdf_to_disk(
+            report,
+            upload_dir=upload_dir,
+            submission_id=submission_id,
+            patient_name=patient_name,
+            code_no=code_no,
+            arabic=arabic,
+        )
+
+    with tempfile.TemporaryDirectory() as temp_upload_dir:
+        metadata = save_report_pdf_to_disk(
+            report,
+            upload_dir=temp_upload_dir,
+            submission_id=submission_id,
+            patient_name=patient_name,
+            code_no=code_no,
+            arabic=arabic,
+        )
+        relative_path = metadata["relative_path"]
+        temp_path = os.path.join(temp_upload_dir, relative_path)
+        with open(temp_path, "rb") as file_obj:
+            upload_storage_bytes(relative_path, file_obj.read(), content_type="application/pdf")
+
+    metadata["storage_backend"] = STORAGE_BACKEND
+    metadata["ephemeral"] = STORAGE_IS_EPHEMERAL
+    metadata["blob_container"] = AZURE_STORAGE_CONTAINER
+    metadata["blob_name"] = metadata["relative_path"]
+    return metadata
+
 
 def run_full_clinical_pipeline(data, submission_id=None):
     """Run the diagrammed workflow through the core orchestrator."""
