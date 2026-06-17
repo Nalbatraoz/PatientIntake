@@ -20,7 +20,7 @@ from werkzeug.security import check_password_hash, generate_password_hash
 from core.agent_utils import compact_text as first_text
 from core.agent_utils import load_secret as read_secret
 from core.agent_utils import gemini_model_resource, gemini_text, parse_json_object, request_json
-from core.crew_orchestrator import run_full_clinical_pipeline as orchestrate_full_clinical_pipeline
+from core.crew_orchestrator import run_crewai_workflow as orchestrate_full_clinical_pipeline
 from nodes.RAG_agent import retrieve_clinical_context
 import nodes.agents as clinical_agent_module
 from nodes.agents import (

@@ -2,6 +2,7 @@
 
 
 def default_clinical_query(data):
+    """Build the default clinical query when the caller did not provide one."""
     parts = [
         data.get("chiefComplaint") or data.get("chief_complaint"),
         data.get("medicalHistory") or data.get("medical_history"),
@@ -14,55 +15,7 @@ def default_clinical_query(data):
     return "Clinical review for men's sexual health symptoms, medication safety, and guideline context."
 
 
-def attach_report_agent_output(
-    pipeline,
-    data=None,
-    *,
-    run_report_agent,
-    build_arabic_pdf_report,
-    save_report_pdf,
-    gemini_api_key,
-    gemini_report_model,
-    upload_dir,
-    storage_backend,
-    storage_is_ephemeral,
-):
-    """Run the final report agent and save its structured report as a PDF."""
-    data = data or {}
-    report_result = run_report_agent(
-        pipeline,
-        api_key=gemini_api_key,
-        model_name=gemini_report_model,
-    )
-    pipeline["report_agent"] = report_result
-    pipeline["final_report"] = report_result.get("report")
-    arabic_pdf_report, translation_error = build_arabic_pdf_report(
-        report_result.get("report") or {},
-        api_key=gemini_api_key,
-        model_name=gemini_report_model,
-    )
-    if translation_error:
-        pipeline["report_pdf_translation_error"] = translation_error
-
-    try:
-        pipeline["report_pdf"] = save_report_pdf(
-            arabic_pdf_report,
-            upload_dir=upload_dir,
-            submission_id=pipeline.get("submission_id"),
-            patient_name=data.get("fullName") or data.get("full_name"),
-            code_no=data.get("codeNo") or data.get("code_no"),
-            arabic=True,
-        )
-        pipeline["report_pdf"]["storage_backend"] = storage_backend
-        pipeline["report_pdf"]["ephemeral"] = storage_is_ephemeral
-    except (OSError, RuntimeError) as exc:
-        pipeline["report_pdf"] = {"error": str(exc)}
-
-    pipeline["stopped_after"] = "report_agent"
-    return pipeline
-
-
-def run_full_clinical_pipeline(
+def run_crewai_workflow(
     data,
     submission_id=None,
     *,
@@ -82,7 +35,7 @@ def run_full_clinical_pipeline(
     storage_backend,
     storage_is_ephemeral,
 ):
-    """Run the diagrammed workflow: lifestyle triage, then clinical and research agents if needed."""
+    """Run the full CrewAI workflow in a single orchestration function."""
     pipeline = {
         "workflow": [
             "lifestyle_agent",
@@ -96,23 +49,47 @@ def run_full_clinical_pipeline(
         "status": "started",
     }
 
+    def finalize_report():
+        """Run the final report agent and save the resulting PDF."""
+        report_result = run_report_agent(
+            pipeline,
+            api_key=gemini_api_key,
+            model_name=gemini_report_model,
+        )
+        pipeline["report_agent"] = report_result
+        pipeline["final_report"] = report_result.get("report")
+
+        arabic_pdf_report, translation_error = build_arabic_pdf_report(
+            report_result.get("report") or {},
+            api_key=gemini_api_key,
+            model_name=gemini_report_model,
+        )
+        if translation_error:
+            pipeline["report_pdf_translation_error"] = translation_error
+
+        try:
+            pipeline["report_pdf"] = save_report_pdf(
+                arabic_pdf_report,
+                upload_dir=upload_dir,
+                submission_id=pipeline.get("submission_id"),
+                patient_name=data.get("fullName") or data.get("full_name"),
+                code_no=data.get("codeNo") or data.get("code_no"),
+                arabic=True,
+            )
+            pipeline["report_pdf"]["storage_backend"] = storage_backend
+            pipeline["report_pdf"]["ephemeral"] = storage_is_ephemeral
+        except (OSError, RuntimeError) as exc:
+            pipeline["report_pdf"] = {"error": str(exc)}
+
+        pipeline["stopped_after"] = "report_agent"
+        return pipeline
+
     if not gemini_api_key:
         pipeline.update({
             "status": "error",
             "error": "GEMINI_API_KEY is not configured.",
         })
-        return attach_report_agent_output(
-            pipeline,
-            data,
-            run_report_agent=run_report_agent,
-            build_arabic_pdf_report=build_arabic_pdf_report,
-            save_report_pdf=save_report_pdf,
-            gemini_api_key=gemini_api_key,
-            gemini_report_model=gemini_report_model,
-            upload_dir=upload_dir,
-            storage_backend=storage_backend,
-            storage_is_ephemeral=storage_is_ephemeral,
-        )
+        return finalize_report()
 
     lifestyle_result = run_lifestyle_agent(data, gemini_api_key)
     pipeline["lifestyle_agent"] = lifestyle_result
@@ -164,15 +141,8 @@ def run_full_clinical_pipeline(
             "evidence_review": evidence_review_result.get("report"),
         },
     })
-    return attach_report_agent_output(
-        pipeline,
-        data,
-        run_report_agent=run_report_agent,
-        build_arabic_pdf_report=build_arabic_pdf_report,
-        save_report_pdf=save_report_pdf,
-        gemini_api_key=gemini_api_key,
-        gemini_report_model=gemini_report_model,
-        upload_dir=upload_dir,
-        storage_backend=storage_backend,
-        storage_is_ephemeral=storage_is_ephemeral,
-    )
+    return finalize_report()
+
+
+run_full_clinical_pipeline = run_crewai_workflow
+
