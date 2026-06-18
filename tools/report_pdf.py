@@ -91,7 +91,7 @@ def _report_lines(report):
         _add_wrapped_rows(rows, "body", summary, width=82)
         rows.append({"style": "spacer", "text": ""})
 
-    for heading, items in canonical_report_sections(report):
+    for heading, items in _iter_report_sections(report):
         rows.append({"style": "section", "text": heading})
         for item in items:
             _add_wrapped_rows(rows, "item", item, width=82, prefix="- ")
@@ -329,6 +329,21 @@ def _arabic_wrapped_lines(text, width=72, prefix=""):
     ) or [prefix]
 
 
+def _iter_report_sections(report):
+    """Yield canonical report sections as ``(heading, items)`` pairs."""
+    for section in canonical_report_sections(report):
+        if isinstance(section, dict):
+            heading = str(section.get("heading") or "").strip()
+            items = section.get("items") or []
+        elif isinstance(section, (list, tuple)) and len(section) == 2:
+            heading, items = section
+            heading = str(heading or "").strip()
+        else:
+            continue
+        if heading:
+            yield heading, items
+
+
 def _arabic_sections(report):
     """Return Arabic PDF sections from an Arabic structured report."""
     report = normalize_final_report(report)
@@ -358,7 +373,7 @@ def _arabic_sections(report):
     if summary:
         sections.append(("الملخص السريري", [summary]))
 
-    for heading, items in canonical_report_sections(report):
+    for heading, items in _iter_report_sections(report):
         sections.append((arabic_titles.get(heading, heading), items))
 
     citations = dedupe_list(report.get("citations") or report.get("source_citations"))
@@ -414,6 +429,21 @@ def write_arabic_pdf(report, output_path, *, font_paths=None):
         pdf.setFillColor(colors.HexColor(color))
         pdf.drawRightString(x or right, y, _shape_arabic(text, arabic_reshaper, get_display))
 
+    def draw_rtl_meta(label, value, *, font="ArabicRegular", size=9, color="#56677a", gap=8):
+        """Draw an Arabic label with an adjacent LTR metadata value."""
+        value = str(value or "").strip()
+        if not label and not value:
+            return
+        shaped_label = _shape_arabic(label, arabic_reshaper, get_display)
+        pdf.setFont(font, size)
+        pdf.setFillColor(colors.HexColor(color))
+        pdf.drawRightString(right, y, shaped_label)
+        if value:
+            label_width = pdf.stringWidth(shaped_label, font, size)
+            value_width = pdf.stringWidth(value, font, size)
+            value_x = max(left, right - label_width - gap - value_width)
+            pdf.drawString(value_x, y, value)
+
     def draw_wrapped(text, *, prefix="", font="ArabicRegular", size=10, color="#172033", width=74):
         nonlocal y
         for line in _arabic_wrapped_lines(text, width=width, prefix=prefix):
@@ -438,7 +468,12 @@ def write_arabic_pdf(report, output_path, *, font_paths=None):
         draw_rtl_line(line, font="ArabicBold", size=17 if index == 0 else 15, color="#1f4e79")
         y -= 24 if index == 0 else 20
 
-    draw_rtl_line(f"تاريخ الإصدار: {datetime.utcnow().isoformat(timespec='seconds')}Z", size=9, color="#56677a")
+    draw_rtl_meta(
+        "تاريخ الإصدار:",
+        datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        size=9,
+        color="#56677a",
+    )
     y -= 24
 
     for heading, items in _arabic_sections(report):
