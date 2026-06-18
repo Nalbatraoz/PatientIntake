@@ -1,4 +1,5 @@
 import json
+import re
 
 from tools.crewai_agent_tools import run_crewai_json_agent
 from nodes.tasks import get_agent_definition, get_task_definition
@@ -64,6 +65,33 @@ def _call_gemini(raw_data: dict, api_key: str) -> dict:
     )
 
 
+def _has_meaningful_patient_data(value):
+    """Return True when the submission contains at least some usable patient context."""
+    if isinstance(value, dict):
+        return any(_has_meaningful_patient_data(item) for item in value.values())
+    if isinstance(value, list):
+        return any(_has_meaningful_patient_data(item) for item in value)
+    text = str(value or "").strip()
+    if not text:
+        return False
+    normalized = re.sub(r"\W+", "", text, flags=re.UNICODE).lower()
+    return normalized not in {"", "na", "n/a", "none", "null", "unknown"}
+
+
+def _claims_no_patient_data(reasoning):
+    """Return True when the model says the submission had no usable patient data."""
+    normalized = re.sub(r"\s+", " ", str(reasoning or "").strip().lower())
+    return any(
+        phrase in normalized
+        for phrase in (
+            "no patient data was provided",
+            "no patient information was provided",
+            "no patient data provided",
+            "insufficient patient data was provided",
+        )
+    )
+
+
 def run_lifestyle_agent(raw_data: dict, api_key: str) -> dict:
     """Return lifestyle-only triage or fall through to the full pipeline."""
     try:
@@ -83,6 +111,16 @@ def run_lifestyle_agent(raw_data: dict, api_key: str) -> dict:
 
     if "decision" not in result:
         result["decision"] = "NO"
+
+    if _has_meaningful_patient_data(raw_data) and _claims_no_patient_data(result.get("reasoning")):
+        result["decision"] = "NO"
+        result["confidence"] = "low"
+        result["dominant_factors"] = []
+        result["reasoning"] = (
+            "Patient data was present in the submission, but the lifestyle triage response did not analyze it "
+            "reliably. Continuing to the full clinical pipeline for safety."
+        )
+        result["lifestyle_recommendations"] = []
 
     # Purpose: keep the routing flag consistent with the YES/NO decision.
     result["proceed_to_pipeline"] = result["decision"].upper() != "YES"

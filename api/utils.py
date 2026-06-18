@@ -1085,10 +1085,10 @@ def build_ai_summary_points(pipeline, limit=12):
         if decision or confidence:
             label = "Lifestyle triage"
             decision_text = {
-                "no": "No concern identified",
-                "yes": "Concern identified",
-                "likely": "Likely concern identified",
-                "unlikely": "Unlikely concern",
+                "no": "Lifestyle factors not sufficient",
+                "yes": "Lifestyle factors likely primary",
+                "likely": "Likely lifestyle-related",
+                "unlikely": "Unlikely lifestyle-only",
             }.get(decision.lower(), decision)
             suffix = f": {decision_text}" if decision_text else ""
             if confidence:
