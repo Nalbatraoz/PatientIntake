@@ -221,6 +221,13 @@ document.addEventListener("click", function (event) {
       const activeClass = activePath === linkPath ? " is-active" : "";
       return `<a class="nv-nav-link${activeClass}" href="${navHref(href)}">${icon(pathData)}<span>${label}</span></a>`;
     }).join("");
+    const sidebarCredit = activePath === "/submissions" ? "" : `
+        <div class="nv-sidebar-credit">
+          <strong>Patient Intake</strong>
+          <p>Complete your clinical intake before the visit.</p>
+          <div class="nv-progress" aria-hidden="true"><span data-nv-progress></span></div>
+        </div>
+    `;
 
     return `
       <aside class="nv-sidebar" aria-label="Primary navigation">
@@ -229,11 +236,7 @@ document.addEventListener("click", function (event) {
           <span class="nv-brand-name">Nanovate</span>
         </div>
         <nav class="nv-nav">${links}</nav>
-        <div class="nv-sidebar-credit">
-          <strong>Patient Intake</strong>
-          <p>Complete your clinical intake before the visit.</p>
-          <div class="nv-progress" aria-hidden="true"><span data-nv-progress></span></div>
-        </div>
+        ${sidebarCredit}
       </aside>
     `;
   }
