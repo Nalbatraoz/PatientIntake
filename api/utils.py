@@ -2,6 +2,7 @@ import base64
 import hmac
 import io
 import json
+import logging
 import mimetypes
 import os
 import re
@@ -39,20 +40,40 @@ except ImportError:
 if load_dotenv:
     load_dotenv(os.path.join(BASE_DIR, ".env"), override=False)
 
-DB_PATH = os.environ.get("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
-UPLOAD_DIR = os.environ.get("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
-STORAGE_BACKEND = (os.environ.get("STORAGE_BACKEND") or "local_filesystem").strip().lower()
+LOG_LEVEL = (os.environ.get("LOG_LEVEL") or "INFO").strip().upper()
+logging.basicConfig(
+    level=getattr(logging, LOG_LEVEL, logging.INFO),
+    format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
+)
+logger = logging.getLogger("patient_intake.storage")
+
+
+def env_value(*names, default=""):
+    """Read env vars, including markdown-escaped names copied from notes."""
+    for name in names:
+        candidates = (name, name.replace("_", r"\_"))
+        for candidate in candidates:
+            value = os.environ.get(candidate)
+            if value not in (None, ""):
+                return str(value).strip()
+    return default
+
+
+DB_PATH = env_value("DB_PATH") or os.path.join(BASE_DIR, "intake.db")
+UPLOAD_DIR = env_value("UPLOAD_DIR") or os.path.join(BASE_DIR, "uploads")
+STORAGE_BACKEND = (env_value("STORAGE_BACKEND") or "local_filesystem").strip().lower()
 STORAGE_IS_EPHEMERAL = False
-AZURE_STORAGE_CONNECTION_STRING = os.environ.get("AZURE_STORAGE_CONNECTION_STRING", "").strip()
-AZURE_ACCOUNT_NAME = os.environ.get("AZURE_ACCOUNT_NAME", "").strip()
-AZURE_ACCOUNT_KEY = os.environ.get("AZURE_ACCOUNT_KEY", "").strip()
+AZURE_STORAGE_CONNECTION_STRING = env_value("AZURE_STORAGE_CONNECTION_STRING")
+AZURE_ACCOUNT_NAME = env_value("AZURE_ACCOUNT_NAME")
+AZURE_ACCOUNT_KEY = env_value("AZURE_ACCOUNT_KEY")
 AZURE_STORAGE_CONTAINER = (
-    os.environ.get("AZURE_STORAGE_CONTAINER")
-    or os.environ.get("AZURE_BLOB_CONTAINER")
-    or os.environ.get("BLOB_NAME")
+    env_value("AZURE_STORAGE_CONTAINER")
+    or env_value("AZURE_BLOB_CONTAINER")
+    or env_value("AZURE_CONTAINER_NAME")
+    or env_value("BLOB_NAME")
     or ""
 ).strip()
-APP_BASE_PATH = os.environ.get("APP_BASE_PATH", "").strip()
+APP_BASE_PATH = env_value("APP_BASE_PATH").strip()
 if APP_BASE_PATH and APP_BASE_PATH != "/":
     APP_BASE_PATH = "/" + APP_BASE_PATH.strip("/")
 else:
@@ -132,6 +153,10 @@ def is_azure_storage_enabled():
     return STORAGE_BACKEND in {"azure", "azure_blob", "azure-blob", "blob"}
 
 
+def _yes_no(value):
+    return "yes" if bool(value) else "no"
+
+
 def _normalize_blob_name(relative_path):
     blob_name = str(relative_path or "").replace("\\", "/").lstrip("/")
     if not blob_name or blob_name.startswith("../") or "/../" in f"/{blob_name}":
@@ -160,11 +185,24 @@ def _azure_service_client():
 
     connection_string = _clean_azure_connection_string(AZURE_STORAGE_CONNECTION_STRING)
     if connection_string:
+        logger.info(
+            "[storage] creating Azure BlobServiceClient from connection string "
+            "account_configured=%s container=%s",
+            _yes_no(True),
+            AZURE_STORAGE_CONTAINER or "(missing)",
+        )
         _azure_blob_service_client = BlobServiceClient.from_connection_string(connection_string)
         return _azure_blob_service_client
 
     if AZURE_ACCOUNT_NAME and AZURE_ACCOUNT_KEY:
         account_url = f"https://{AZURE_ACCOUNT_NAME}.blob.core.windows.net"
+        logger.info(
+            "[storage] creating Azure BlobServiceClient from account credentials "
+            "account=%s container=%s key_configured=%s",
+            AZURE_ACCOUNT_NAME,
+            AZURE_STORAGE_CONTAINER or "(missing)",
+            _yes_no(AZURE_ACCOUNT_KEY),
+        )
         _azure_blob_service_client = BlobServiceClient(account_url=account_url, credential=AZURE_ACCOUNT_KEY)
         return _azure_blob_service_client
 
@@ -184,9 +222,16 @@ def _azure_container_client():
     if not _azure_container_ready:
         try:
             container_client.create_container()
+            logger.info("[storage] Azure container created container=%s", AZURE_STORAGE_CONTAINER)
         except Exception as exc:
             if exc.__class__.__name__ not in {"ResourceExistsError", "ContainerAlreadyExists"}:
+                logger.exception(
+                    "[storage] Azure container setup failed container=%s error_type=%s",
+                    AZURE_STORAGE_CONTAINER,
+                    exc.__class__.__name__,
+                )
                 raise
+            logger.info("[storage] Azure container exists container=%s", AZURE_STORAGE_CONTAINER)
         _azure_container_ready = True
     return container_client
 
@@ -195,6 +240,17 @@ def upload_storage_bytes(relative_path, contents, *, content_type="application/o
     """Store upload bytes in the configured backend."""
     blob_name = _normalize_blob_name(relative_path)
     content_type = content_type or mimetypes.guess_type(blob_name)[0] or "application/octet-stream"
+    byte_count = len(contents or b"")
+
+    logger.info(
+        "[storage] upload requested backend=%s azure_enabled=%s blob=%s bytes=%s content_type=%s container=%s",
+        STORAGE_BACKEND,
+        _yes_no(is_azure_storage_enabled()),
+        blob_name,
+        byte_count,
+        content_type,
+        AZURE_STORAGE_CONTAINER or "(none)",
+    )
 
     if is_azure_storage_enabled():
         try:
@@ -202,11 +258,27 @@ def upload_storage_bytes(relative_path, contents, *, content_type="application/o
         except ImportError as exc:
             raise RuntimeError("azure-storage-blob is not installed. Run python -m pip install -e .") from exc
 
-        blob_client = _azure_container_client().get_blob_client(blob_name)
-        blob_client.upload_blob(
-            contents,
-            overwrite=True,
-            content_settings=ContentSettings(content_type=content_type),
+        try:
+            blob_client = _azure_container_client().get_blob_client(blob_name)
+            blob_client.upload_blob(
+                contents,
+                overwrite=True,
+                content_settings=ContentSettings(content_type=content_type),
+            )
+        except Exception as exc:
+            logger.exception(
+                "[storage] Azure upload failed container=%s blob=%s bytes=%s error_type=%s",
+                AZURE_STORAGE_CONTAINER or "(missing)",
+                blob_name,
+                byte_count,
+                exc.__class__.__name__,
+            )
+            raise RuntimeError(f"Azure Blob upload failed for {blob_name}: {exc}") from exc
+        logger.info(
+            "[storage] Azure upload succeeded container=%s blob=%s bytes=%s",
+            AZURE_STORAGE_CONTAINER,
+            blob_name,
+            byte_count,
         )
         return
 
@@ -214,17 +286,33 @@ def upload_storage_bytes(relative_path, contents, *, content_type="application/o
     os.makedirs(os.path.dirname(destination_path), exist_ok=True)
     with open(destination_path, "wb") as file_obj:
         file_obj.write(contents)
+    logger.info("[storage] local upload saved path=%s bytes=%s", destination_path, byte_count)
 
 
 def read_storage_bytes(relative_path):
     """Read upload bytes from the configured backend."""
     blob_name = _normalize_blob_name(relative_path)
     local_path = os.path.join(UPLOAD_DIR, blob_name)
+    logger.info(
+        "[storage] read requested backend=%s azure_enabled=%s blob=%s container=%s",
+        STORAGE_BACKEND,
+        _yes_no(is_azure_storage_enabled()),
+        blob_name,
+        AZURE_STORAGE_CONTAINER or "(none)",
+    )
     if is_azure_storage_enabled():
         try:
             blob_client = _azure_container_client().get_blob_client(blob_name)
-            return blob_client.download_blob().readall()
-        except Exception:
+            data = blob_client.download_blob().readall()
+            logger.info("[storage] Azure read succeeded blob=%s bytes=%s", blob_name, len(data or b""))
+            return data
+        except Exception as exc:
+            logger.exception(
+                "[storage] Azure read failed blob=%s error_type=%s fallback_local_exists=%s",
+                blob_name,
+                exc.__class__.__name__,
+                _yes_no(os.path.exists(local_path)),
+            )
             if os.path.exists(local_path):
                 with open(local_path, "rb") as file_obj:
                     return file_obj.read()
@@ -254,6 +342,51 @@ def storage_file_exists(relative_path):
 def storage_content_type(relative_path, fallback="application/octet-stream"):
     """Guess an upload's MIME type from its path."""
     return mimetypes.guess_type(str(relative_path or ""))[0] or fallback
+
+
+def storage_status(check_remote=False):
+    """Return safe storage diagnostics without exposing secrets."""
+    status = {
+        "backend": STORAGE_BACKEND,
+        "azure_enabled": is_azure_storage_enabled(),
+        "container": AZURE_STORAGE_CONTAINER,
+        "has_connection_string": bool(AZURE_STORAGE_CONNECTION_STRING),
+        "has_account_name": bool(AZURE_ACCOUNT_NAME),
+        "has_account_key": bool(AZURE_ACCOUNT_KEY),
+        "upload_dir": UPLOAD_DIR,
+    }
+    if check_remote and is_azure_storage_enabled():
+        try:
+            container_client = _azure_container_client()
+            status["remote_check"] = "ok"
+            status["container_exists"] = bool(container_client.exists())
+        except Exception as exc:
+            status["remote_check"] = "error"
+            status["remote_error_type"] = exc.__class__.__name__
+            status["remote_error"] = str(exc)
+    return status
+
+
+def log_storage_configuration():
+    status = storage_status(check_remote=False)
+    logger.info(
+        "[storage] configured backend=%s azure_enabled=%s container=%s "
+        "connection_string=%s account_name=%s account_key=%s upload_dir=%s",
+        status["backend"],
+        _yes_no(status["azure_enabled"]),
+        status["container"] or "(none)",
+        _yes_no(status["has_connection_string"]),
+        _yes_no(status["has_account_name"]),
+        _yes_no(status["has_account_key"]),
+        status["upload_dir"],
+    )
+    if status["azure_enabled"] and not status["container"]:
+        logger.error("[storage] Azure backend enabled but container is missing.")
+    if status["azure_enabled"] and not (status["has_connection_string"] or (status["has_account_name"] and status["has_account_key"])):
+        logger.error("[storage] Azure backend enabled but credentials are missing.")
+
+
+log_storage_configuration()
 
 SUBMISSIONS_PASSWORD = os.environ.get("SUBMISSIONS_PASSWORD", "Doctor")
 OPENFDA_API_KEY = load_secret("OPENFDA_API_KEY")
@@ -471,6 +604,15 @@ def save_uploaded_file(file_obj, category, allowed_extensions):
     contents = file_obj.read()
     content_type = file_obj.mimetype or mimetypes.guess_type(original_name)[0] or "application/octet-stream"
     upload_storage_bytes(relative_path_normalized, contents, content_type=content_type)
+    logger.info(
+        "[upload] stored category=%s extension=%s bytes=%s backend=%s relative_path=%s azure_container=%s",
+        category,
+        ext,
+        len(contents),
+        STORAGE_BACKEND,
+        relative_path_normalized,
+        AZURE_STORAGE_CONTAINER if is_azure_storage_enabled() else "",
+    )
 
     return {
         "category": category,
