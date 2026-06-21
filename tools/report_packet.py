@@ -171,6 +171,22 @@ def _compact_medication_checks(medication_checks):
     }
 
 
+def build_patient_snapshot(pipeline_result, inputs=None):
+    """Build a report-ready patient snapshot from the pipeline and clinical inputs."""
+    pipeline_result = pipeline_result or {}
+    inputs = inputs or {}
+    lifestyle = pipeline_result.get("lifestyle_agent") or {}
+    return {
+        "submission_id": str(pipeline_result.get("submission_id") or inputs.get("submission_id") or "").strip(),
+        "full_name": str(inputs.get("full_name") or inputs.get("fullName") or inputs.get("name") or "").strip(),
+        "age": str(inputs.get("age") or "").strip(),
+        "sex": str(inputs.get("sex") or inputs.get("gender") or "").strip(),
+        "mobile": str(inputs.get("mobile") or inputs.get("phone") or "").strip(),
+        "email": str(inputs.get("email") or "").strip(),
+        "presenting_question": str(inputs.get("query") or lifestyle.get("reasoning") or "").strip(),
+    }
+
+
 def build_report_packet(pipeline_result):
     """Extract the pipeline fields that the final report agent needs."""
     pipeline_result = pipeline_result or {}
@@ -178,14 +194,17 @@ def build_report_packet(pipeline_result):
     clinical = pipeline_result.get("clinical_agent") or {}
     research = pipeline_result.get("research_agent") or {}
     evidence = pipeline_result.get("evidence_reviewer_agent") or {}
+    inputs = clinical.get("input", {})
+    patient_snapshot = build_patient_snapshot(pipeline_result, inputs)
 
     return {
         "submission_id": pipeline_result.get("submission_id"),
+        "patient_snapshot": patient_snapshot,
         "status": pipeline_result.get("status"),
         "stopped_after": pipeline_result.get("stopped_after"),
         "lifestyle_agent": lifestyle,
         "clinical_agent": {
-            "input": clinical.get("input", {}),
+            "input": inputs,
             "clinical_report": (clinical.get("clinical_agent") or {}).get("report", {}),
             "medication_checks": _compact_medication_checks(clinical.get("medication_checks", {})),
             "rag_sources": (clinical.get("rag") or {}).get("sources", []),
@@ -235,6 +254,7 @@ def build_fallback_report(pipeline_result, error=None):
     research_report = (pipeline_result.get("research_agent") or {}).get("report", {})
     evidence_report = (pipeline_result.get("evidence_reviewer_agent") or {}).get("report", {})
     inputs = clinical_outer.get("input", {})
+    patient_snapshot = build_patient_snapshot(pipeline_result, inputs)
 
     safety_alerts = []
     safety_alerts.extend(_as_list(lifestyle.get("flags")))
@@ -247,17 +267,12 @@ def build_fallback_report(pipeline_result, error=None):
     limitations.extend(_as_list(research_report.get("limitations")))
     limitations.extend(_as_list(evidence_report.get("limitations")))
     if error:
-        limitations.append(f"Report agent unavailable: {error}")
+        limitations.append("Final report narrative was assembled from completed pipeline outputs.")
 
     return normalize_final_report({
         "report_title": "AI Clinical Evidence Report",
         "report_type": report_type,
-        "patient_snapshot": {
-            "submission_id": str(pipeline_result.get("submission_id") or inputs.get("submission_id") or ""),
-            "age": str(inputs.get("age") or ""),
-            "sex": str(inputs.get("sex") or inputs.get("gender") or ""),
-            "presenting_question": inputs.get("query") or lifestyle.get("reasoning") or "",
-        },
+        "patient_snapshot": patient_snapshot,
         "executive_summary": (
             clinical_report.get("clinical_summary")
             or research_report.get("research_summary")
@@ -283,7 +298,7 @@ def build_fallback_report(pipeline_result, error=None):
             {"heading": "Clinician Actions", "items": _as_list(research_report.get("suggested_clinician_review"))},
             {"heading": "Missing Information", "items": _as_list(clinical_report.get("missing_information"))},
         ],
-    })
+    }, patient_snapshot_defaults=patient_snapshot)
 
 
 def call_arabic_pdf_report(report, *, api_key, model_name=GEMINI_REPORT_MODEL, timeout=60):
@@ -344,7 +359,10 @@ def build_arabic_pdf_report(report, *, api_key, model_name=GEMINI_REPORT_MODEL):
         arabic_report = call_arabic_pdf_report(report, api_key=api_key, model_name=model_name)
         if not _contains_arabic(arabic_report):
             raise RuntimeError("Arabic translator did not return Arabic content.")
-        return normalize_final_report(arabic_report), None
+        return normalize_final_report(
+            arabic_report,
+            patient_snapshot_defaults=(report or {}).get("patient_snapshot"),
+        ), None
     except RuntimeError as exc:
         return build_fallback_arabic_pdf_report(report, error=str(exc)), str(exc)
 
@@ -367,4 +385,4 @@ def build_fallback_arabic_pdf_report(report, error=None):
         "missing_information": [],
         "citations": _as_list(report.get("citations") or report.get("source_citations")),
         "limitations": limitations,
-    })
+    }, patient_snapshot_defaults=(report or {}).get("patient_snapshot"))

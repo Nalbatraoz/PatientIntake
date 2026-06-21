@@ -91,47 +91,101 @@ def _summarize_values(value):
     return str(value or "").strip()
 
 
+def _collect_all(data, *keys):
+    """Collect readable values from all matching keys instead of stopping at the first one."""
+    values = []
+    seen = set()
+    for key in keys:
+        value = (data or {}).get(key)
+        if value in (None, ""):
+            continue
+        summarized = _summarize_values(value)
+        if not summarized:
+            continue
+        marker = summarized.lower()
+        if marker in seen:
+            continue
+        seen.add(marker)
+        values.append(summarized)
+    return ", ".join(values)
+
+
 def _build_lifestyle_patient_context(raw_data):
     """Build a compact normalized patient summary for the lifestyle triage prompt."""
     raw_data = raw_data or {}
-    complaints = _summarize_values(
-        _first_present(raw_data, "complaints", "complaint", "chiefComplaint", "chief_complaint")
+    complaints = _collect_all(
+        raw_data,
+        "complaints",
+        "complaint",
+        "chiefComplaint",
+        "chief_complaint",
+        "question",
+        "clinical_question",
+        "clinicalQuestion",
+        "query",
     )
-    medical_history = _summarize_values(
-        _first_present(
-            raw_data,
-            "medicalHistory",
-            "medical_history",
-            "history",
-            "pastMedicalHistory",
-            "medicalConditions",
-            "medical_conditions",
-        )
+    medical_history = _collect_all(
+        raw_data,
+        "medicalHistory",
+        "medical_history",
+        "history",
+        "pastMedicalHistory",
+        "medicalConditions",
+        "medical_conditions",
+        "drugAllergies",
+        "drug_allergies",
+        "otherAllergies",
+        "other_allergies",
     )
-    current_medications = _summarize_values(
-        _first_present(raw_data, "currentMedications", "current_medications", "medications")
+    current_medications = _collect_all(
+        raw_data,
+        "currentMedications",
+        "current_medications",
+        "medications",
+        "medicationText",
     )
-    lifestyle_details = _summarize_values(
-        _first_present(
-            raw_data,
-            "lifestyleFactors",
-            "lifestyle_factors",
-            "sleep",
-            "stress",
-            "smoking",
-            "alcohol",
-            "exercise",
-            "diet",
-        )
+    lifestyle_details = _collect_all(
+        raw_data,
+        "lifestyleFactors",
+        "lifestyle_factors",
+        "sleep",
+        "stress",
+        "smoking",
+        "alcohol",
+        "exercise",
+        "diet",
+        "sleepHours",
+        "sleepType",
+        "sleepQuality",
+        "snoring",
+        "daytimeFatigue",
+        "exerciseFrequency",
+        "exerciseType",
+        "sittingHours",
+        "lateNightEating",
+        "smokingStatus",
+        "cigarettesPerDay",
+        "recreationalDrugUse",
+        "pornographyFrequency",
+        "masturbation",
+        "partnerDifficultyOnly",
+        "stressLevel",
+        "anxietyDepression",
+        "relationshipConflict",
+        "performanceAnxiety",
+        "sedentaryWork",
+        "nightShifts",
+        "heatToxinExposure",
+        "energyLevel",
+        "libidoScore",
+        "recoveryScore",
     )
-    questionnaire_details = _summarize_values(
-        _first_present(
-            raw_data,
-            "iief_data",
-            "pedt_data",
-            "ehs_data",
-            "low_libido_data",
-        )
+    questionnaire_details = _collect_all(
+        raw_data,
+        "iief_data",
+        "pedt_data",
+        "ehs_data",
+        "low_libido_data",
     )
     parts = [
         f"Age: {_summarize_values(_first_present(raw_data, 'age'))}",
@@ -184,35 +238,72 @@ def _claims_no_patient_data(reasoning):
 def _build_patient_issue_reasoning(raw_data):
     """Build a patient-specific lifestyle-triage summary from the submitted data."""
     raw_data = raw_data or {}
-    complaints = _summarize_values(
-        _first_present(raw_data, "complaints", "complaint", "chiefComplaint", "chief_complaint")
+    complaints = _collect_all(
+        raw_data,
+        "complaints",
+        "complaint",
+        "chiefComplaint",
+        "chief_complaint",
+        "question",
+        "clinical_question",
+        "clinicalQuestion",
+        "query",
     )
-    medical_history = _summarize_values(
-        _first_present(
-            raw_data,
-            "medicalHistory",
-            "medical_history",
-            "history",
-            "pastMedicalHistory",
-            "medicalConditions",
-            "medical_conditions",
-        )
+    medical_history = _collect_all(
+        raw_data,
+        "medicalHistory",
+        "medical_history",
+        "history",
+        "pastMedicalHistory",
+        "medicalConditions",
+        "medical_conditions",
+        "drugAllergies",
+        "drug_allergies",
+        "otherAllergies",
+        "other_allergies",
     )
-    current_medications = _summarize_values(
-        _first_present(raw_data, "currentMedications", "current_medications", "medications")
+    current_medications = _collect_all(
+        raw_data,
+        "currentMedications",
+        "current_medications",
+        "medications",
+        "medicationText",
     )
-    lifestyle_details = _summarize_values(
-        _first_present(
-            raw_data,
-            "lifestyleFactors",
-            "lifestyle_factors",
-            "sleep",
-            "stress",
-            "smoking",
-            "alcohol",
-            "exercise",
-            "diet",
-        )
+    lifestyle_details = _collect_all(
+        raw_data,
+        "lifestyleFactors",
+        "lifestyle_factors",
+        "sleep",
+        "stress",
+        "smoking",
+        "alcohol",
+        "exercise",
+        "diet",
+        "sleepHours",
+        "sleepType",
+        "sleepQuality",
+        "snoring",
+        "daytimeFatigue",
+        "exerciseFrequency",
+        "exerciseType",
+        "sittingHours",
+        "lateNightEating",
+        "smokingStatus",
+        "cigarettesPerDay",
+        "recreationalDrugUse",
+        "pornographyFrequency",
+        "masturbation",
+        "partnerDifficultyOnly",
+        "stressLevel",
+        "anxietyDepression",
+        "relationshipConflict",
+        "performanceAnxiety",
+        "sedentaryWork",
+        "nightShifts",
+        "heatToxinExposure",
+        "energyLevel",
+        "libidoScore",
+        "recoveryScore",
     )
 
     issue_parts = [part for part in (complaints, medical_history, current_medications) if part]

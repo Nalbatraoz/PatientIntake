@@ -6,7 +6,12 @@ import shutil
 import textwrap
 from datetime import datetime
 
-from tools.report_normalization import canonical_report_sections, dedupe_list, normalize_final_report
+from tools.report_normalization import (
+    canonical_report_sections,
+    dedupe_list,
+    display_report_type,
+    normalize_final_report,
+)
 
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -72,17 +77,22 @@ def _report_lines(report):
     rows.extend({"style": "title_cont", "text": part} for part in title_parts[1:])
     rows.extend([
         {"style": "meta", "text": f"Generated: {datetime.utcnow().isoformat(timespec='seconds')}Z"},
+        {"style": "meta", "text": f"Report Type: {display_report_type(report.get('report_type'))}"},
         {"style": "spacer", "text": ""},
     ])
     snapshot = report.get("patient_snapshot") or {}
     snapshot_parts = [
-        f"Submission ID: {snapshot.get('submission_id', '')}",
-        f"Age: {snapshot.get('age', '')}",
-        f"Sex: {snapshot.get('sex', '')}",
+        ("Submission ID", snapshot.get("submission_id", "")),
+        ("Name", snapshot.get("full_name", "")),
+        ("Age", snapshot.get("age", "")),
+        ("Sex", snapshot.get("sex", "")),
+        ("Mobile", snapshot.get("mobile", "")),
+        ("Email", snapshot.get("email", "")),
     ]
     rows.append({"style": "section", "text": "Patient Snapshot"})
-    for part in snapshot_parts:
-        _add_wrapped_rows(rows, "body", part, width=84)
+    for label, value in snapshot_parts:
+        if str(value or "").strip():
+            _add_wrapped_rows(rows, "body", f"{label}: {value}", width=84)
     rows.append({"style": "spacer", "text": ""})
 
     summary = report.get("clinical_summary") or report.get("executive_summary") or ""
@@ -363,9 +373,16 @@ def _arabic_sections(report):
 
     sections = [
         ("بيانات المريض", [
-            f"رقم الملف: {snapshot.get('submission_id', '')}",
-            f"العمر: {snapshot.get('age', '')}",
-            f"النوع: {snapshot.get('sex', '')}",
+            item
+            for item in [
+                f"رقم الملف: {snapshot.get('submission_id', '')}" if snapshot.get("submission_id", "") else "",
+                f"الاسم: {snapshot.get('full_name', '')}" if snapshot.get("full_name", "") else "",
+                f"العمر: {snapshot.get('age', '')}" if snapshot.get("age", "") else "",
+                f"النوع: {snapshot.get('sex', '')}" if snapshot.get("sex", "") else "",
+                f"الهاتف: {snapshot.get('mobile', '')}" if snapshot.get("mobile", "") else "",
+                f"البريد الإلكتروني: {snapshot.get('email', '')}" if snapshot.get("email", "") else "",
+            ]
+            if item
         ]),
     ]
 
@@ -471,6 +488,13 @@ def write_arabic_pdf(report, output_path, *, font_paths=None):
     draw_rtl_meta(
         "تاريخ الإصدار:",
         datetime.utcnow().strftime("%Y-%m-%d %H:%M:%S UTC"),
+        size=9,
+        color="#56677a",
+    )
+    y -= 24
+    draw_rtl_meta(
+        "نوع التقرير:",
+        display_report_type(report.get("report_type")),
         size=9,
         color="#56677a",
     )

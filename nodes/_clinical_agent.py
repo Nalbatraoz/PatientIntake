@@ -255,6 +255,11 @@ def build_agent_inputs(data, dependencies):
 
     return {
         "submission_id": submission_id,
+        "full_name": str(first_present(merged, "fullName", "full_name", "name") or ""),
+        "age": str(first_present(merged, "age") or ""),
+        "sex": str(first_present(merged, "sex", "gender") or ""),
+        "mobile": str(first_present(merged, "mobile", "phone") or ""),
+        "email": str(first_present(merged, "email") or ""),
         "query": clinical_question,
         "patient_context": patient_context,
         "current_medications": str(current_medications or ""),

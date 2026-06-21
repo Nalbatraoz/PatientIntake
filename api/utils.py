@@ -28,7 +28,12 @@ from nodes.agents import (
     build_arabic_pdf_report,
     save_report_pdf as save_report_pdf_to_disk,
 )
-from tools.report_normalization import normalize_final_report, text_key
+from tools.report_normalization import (
+    describe_report_readiness,
+    display_report_type,
+    normalize_final_report,
+    text_key,
+)
 
 BASE_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 FRONTEND_DIR = os.path.join(BASE_DIR, "frontend")
@@ -1035,6 +1040,8 @@ def render_ai_report(pipeline):
         pipeline=pipeline,
         final_report=final_report,
         report_pdf=report_pdf,
+        describe_report_readiness=describe_report_readiness,
+        display_report_type=display_report_type,
         format_evidence_claims=format_evidence_claims,
     )
 
@@ -1146,7 +1153,7 @@ def build_ai_summary_points(pipeline, limit=12):
         if report_type or confidence:
             add_point(
                 "Final report"
-                + (f": {report_type}" if report_type else "")
+                + (f": {display_report_type(report_type)}" if report_type else "")
                 + (f" ({confidence} confidence)" if confidence else "")
             )
         add_list("Urgent alert", final_report.get("urgent_safety_alerts", []), max_items=2)

@@ -172,12 +172,16 @@
         {% if er_report %}
           {% set quality = er_report.get("overall_evidence_quality") or "not stated" %}
           {% set readiness = er_report.get("final_report_readiness") or "not stated" %}
+          {% set readiness_note = describe_report_readiness(readiness, er_report.get("missing_evidence", [])) %}
           <div class="ai-section">
             <div class="ai-section-title" data-i18n-en="Evidence Related" data-i18n-ar="ظ…طھط¹ظ„ظ‚ ط¨ط§ظ„ط£ط¯ظ„ط©">Evidence Related</div>
             <div class="ai-summary-box">
               <p>{{ er_report.get("reviewer_summary", "") }}</p>
               <span class="ai-badge" style="background:#1f4e79"><span data-i18n-en="Quality:" data-i18n-ar="ط§ظ„ط¬ظˆط¯ط©:">Quality:</span> {{ quality }}</span>
               <span class="ai-badge" style="background:#607d8b"><span data-i18n-en="Readiness:" data-i18n-ar="ط§ظ„ط¬ط§ظ‡ط²ظٹط©:">Readiness:</span> {{ readiness }}</span>
+              {% if readiness_note %}
+                <p style="margin-top:10px;color:#546e7a">{{ readiness_note }}</p>
+              {% endif %}
             </div>
             {{ render_list("High Confidence Claims", format_evidence_claims(er_report.get("high_confidence_claims", []))) }}
             {{ render_list("Moderate Confidence Claims", format_evidence_claims(er_report.get("moderate_confidence_claims", [])), warn=True) }}
@@ -197,7 +201,7 @@
             <div class="ai-section-title" data-i18n-en="Final Report" data-i18n-ar="ط§ظ„طھظ‚ط±ظٹط± ط§ظ„ظ†ظ‡ط§ط¦ظٹ">Final Report</div>
             <div class="ai-summary-box">
               <p>{{ final_report.get("executive_summary", "")|trim }}</p>
-              <span class="ai-badge" style="background:#1f4e79"><span data-i18n-en="Type:" data-i18n-ar="ط§ظ„ظ†ظˆط¹:">Type:</span> {{ final_report.get("report_type", "") }}</span>
+              <span class="ai-badge" style="background:#1f4e79"><span data-i18n-en="Type:" data-i18n-ar="ط§ظ„ظ†ظˆط¹:">Type:</span> {{ display_report_type(final_report.get("report_type", "")) }}</span>
               <span class="ai-badge" style="background:#607d8b"><span data-i18n-en="Confidence:" data-i18n-ar="ط§ظ„ط«ظ‚ط©:">Confidence:</span> {{ final_report.get("confidence", "") }}</span>
             </div>
             {% if report_pdf.get("error") %}
@@ -212,8 +216,17 @@
               <strong style="color:#1f4e79" data-i18n-en="Patient Snapshot" data-i18n-ar="ظ…ظ„ط®طµ ط§ظ„ظ…ط±ظٹط¶">Patient Snapshot</strong>
               <ul>
                 <li><span data-i18n-en="Submission ID:" data-i18n-ar="ط±ظ‚ظ… ط§ظ„ط§ط³طھظ…ط§ط±ط©:">Submission ID:</span> {{ snapshot.get("submission_id", "") }}</li>
+                {% if snapshot.get("full_name", "") %}
+                  <li><span data-i18n-en="Name:" data-i18n-ar="الاسم:">Name:</span> {{ snapshot.get("full_name", "") }}</li>
+                {% endif %}
                 <li><span data-i18n-en="Age:" data-i18n-ar="ط§ظ„ط¹ظ…ط±:">Age:</span> {{ snapshot.get("age", "") }}</li>
                 <li><span data-i18n-en="Sex:" data-i18n-ar="ط§ظ„ظ†ظˆط¹:">Sex:</span> {{ snapshot.get("sex", "") }}</li>
+                {% if snapshot.get("mobile", "") %}
+                  <li><span data-i18n-en="Mobile:" data-i18n-ar="الهاتف:">Mobile:</span> {{ snapshot.get("mobile", "") }}</li>
+                {% endif %}
+                {% if snapshot.get("email", "") %}
+                  <li><span data-i18n-en="Email:" data-i18n-ar="البريد الإلكتروني:">Email:</span> {{ snapshot.get("email", "") }}</li>
+                {% endif %}
                 <li><span data-i18n-en="Question:" data-i18n-ar="ط§ظ„ط³ط¤ط§ظ„:">Question:</span> {{ snapshot.get("presenting_question", "") }}</li>
               </ul>
             </div>
