@@ -31,6 +31,16 @@ from nodes._report_agent import (
     run_report_agent,
     call_arabic_pdf_report,
 )
+from nodes._report_chat_agent import (
+    ReportChatError,
+    ReportChatNotFound,
+    ReportChatUnavailable,
+    build_report_chat_packet,
+    call_report_chat_agent,
+    load_report_chat_submission,
+    normalize_submission_id,
+    run_report_chat_agent,
+)
 from nodes._research_agent import (
     build_research_context,
     build_pubmed_query,
@@ -46,5 +56,6 @@ AGENT_NAMES = {
     "lifestyle": "Lifestyle Triage Agent",
     "research": "Research Synthesis Agent",
     "report": "Final Structured Report Agent",
+    "report_chat": "Report Explanation Chat Agent",
     "arabic_pdf": "Arabic PDF Report Translator",
 }

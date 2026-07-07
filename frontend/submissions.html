@@ -6,6 +6,7 @@
   <title>Submitted Forms</title>
   <link rel="stylesheet" href="submissions.css">
   <link rel="stylesheet" href="notifications.css">
+  <link rel="stylesheet" href="nanovate-theme.css">
 </head>
 <body>
   <main>
@@ -58,6 +59,9 @@
             <button class="submission-tab" type="button" data-panel-target="{{ submission.form_panel_id }}" aria-controls="{{ submission.form_panel_id }}" aria-expanded="false" data-i18n-en="Patient Form Answers" data-i18n-ar="إجابات استمارة المريض">Patient Form Answers</button>
             <button class="submission-tab" type="button" data-panel-target="{{ submission.ai_panel_id }}" aria-controls="{{ submission.ai_panel_id }}" aria-expanded="false" data-i18n-en="AI Clinical Report" data-i18n-ar="التقرير السريري بالذكاء الاصطناعي">AI Clinical Report</button>
             <button class="submission-tab" type="button" data-panel-target="{{ submission.ai_summary_panel_id }}" aria-controls="{{ submission.ai_summary_panel_id }}" aria-expanded="false" data-i18n-en="Summary" data-i18n-ar="ملخص">AI Summary</button>
+            {% if submission.report_chat_enabled %}
+              <a class="submission-tab report-chat-launch" href="report-chat?submission_id={{ submission.id }}" data-i18n-en="Ask about this report" data-i18n-ar="Ask about this report">Ask about this report</a>
+            {% endif %}
             {% if submission.iief_data %}
               <button class="submission-tab" type="button" data-panel-target="{{ submission.iief_panel_id }}" aria-controls="{{ submission.iief_panel_id }}" aria-expanded="false" data-i18n-en="IIEF Questionnaire" data-i18n-ar="استبيان IIEF">IIEF Questionnaire</button>
             {% else %}
@@ -80,6 +84,7 @@
             {% endif %}
           </div>
 
+          <div class="submission-panels-layout" data-submission-panels-layout>
           <div id="{{ submission.form_panel_id }}" class="submission-panel form-details" hidden>
             <table>
               <tbody>
@@ -445,6 +450,7 @@
             </div>
           </div>
           {% endif %}
+          </div>
         </article>
       {% endfor %}
     {% endif %}

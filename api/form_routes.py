@@ -1,11 +1,12 @@
 """Frontend and uploads routes."""
 
 import glob
+import html
 import json
 import os
 import re
 
-from flask import Blueprint, Response, render_template, send_from_directory
+from flask import Blueprint, Response, current_app, render_template, request, send_from_directory
 
 from api.intake_completion import load_form_data, resolve_report_pdf_url
 from api.utils import (
@@ -37,6 +38,92 @@ def _maybe_json(value):
         except json.JSONDecodeError:
             return value
     return value
+
+
+def _normalize_submission_lookup(value):
+    text = str(value or "").strip().upper()
+    match = re.fullmatch(r"(?:INT[-\s]*)?(\d+)", text)
+    if not match:
+        return None
+    submission_id = int(match.group(1))
+    return submission_id if submission_id > 0 else None
+
+
+def _report_chat_enabled(pipeline):
+    report_agent_output = (pipeline or {}).get("report_agent") or {}
+    return (
+        str((pipeline or {}).get("status") or "").strip().lower() == "completed"
+        and isinstance(report_agent_output, dict)
+        and bool(report_agent_output.get("report"))
+    )
+
+
+def _report_chat_ai_html(pipeline):
+    rendered = render_ai_report(pipeline)
+    if str(rendered or "").strip():
+        return rendered
+
+    report = (
+        ((pipeline or {}).get("report_agent") or {}).get("report")
+        or (pipeline or {}).get("final_report")
+        or {}
+    )
+    if not isinstance(report, dict) or not report:
+        points = build_ai_summary_points(pipeline)
+        if not points:
+            return '<p class="ai-missing">No AI report available for this submission.</p>'
+        items = "".join(f"<li>{html.escape(str(point))}</li>" for point in points)
+        return f'<div class="ai-section"><div class="ai-section-title">AI Clinical Summary</div><div class="ai-list"><ul>{items}</ul></div></div>'
+
+    def text(value):
+        return html.escape(str(value or "").strip())
+
+    def as_list(value):
+        if isinstance(value, list):
+            return [str(item).strip() for item in value if str(item or "").strip()]
+        if str(value or "").strip():
+            return [str(value).strip()]
+        return []
+
+    sections = []
+    summary = (
+        report.get("executive_summary")
+        or report.get("clinical_summary")
+        or report.get("summary")
+        or ""
+    )
+    if summary:
+        sections.append(
+            '<div class="ai-section">'
+            '<div class="ai-section-title">Final Report</div>'
+            f'<div class="ai-summary-box"><p>{text(summary)}</p></div>'
+            '</div>'
+        )
+
+    list_sections = [
+        ("Findings", report.get("findings")),
+        ("Urgent Safety Alerts", report.get("urgent_safety_alerts")),
+        ("Clinical Findings", report.get("clinical_findings")),
+        ("Medication Safety", report.get("medication_safety")),
+        ("Evidence Summary", report.get("evidence_summary")),
+        ("Clinician Actions", report.get("clinician_actions")),
+        ("Missing Information", report.get("missing_information")),
+        ("Limitations", report.get("limitations")),
+        ("Citations", report.get("citations") or report.get("source_citations")),
+    ]
+    for title, values in list_sections:
+        items = as_list(values)
+        if not items:
+            continue
+        rows = "".join(f"<li>{html.escape(item)}</li>" for item in items)
+        sections.append(
+            '<div class="ai-section">'
+            f'<div class="ai-section-title">{html.escape(title)}</div>'
+            f'<div class="ai-list"><ul>{rows}</ul></div>'
+            '</div>'
+        )
+
+    return "".join(sections) or '<p class="ai-missing">No AI report available for this submission.</p>'
 
 
 def _resolve_uploaded_report_path(filename):
@@ -93,6 +180,18 @@ def notifications_css():
     return _send_frontend("notifications.css")
 
 
+@form_bp.route("/nanovate-theme.css")
+def nanovate_theme_css():
+    """Serve the shared Nanovate dark theme overrides."""
+    return _send_frontend("nanovate-theme.css")
+
+
+@form_bp.route("/favicon.ico")
+def favicon():
+    """Avoid browser favicon 404 noise during local checks."""
+    return Response(status=204)
+
+
 @form_bp.route("/submissions.css")
 def submissions_css():
     """Serve the submissions page stylesheet."""
@@ -103,6 +202,30 @@ def submissions_css():
 def submissions_js():
     """Serve the submissions page JavaScript file."""
     return _send_frontend("submissions.js")
+
+
+@form_bp.route("/report-chat.css")
+def report_chat_css():
+    """Serve the dedicated report chat page stylesheet."""
+    return _send_frontend("report_chat.css")
+
+
+@form_bp.route("/report-chat.js")
+def report_chat_js():
+    """Serve the dedicated report chat page JavaScript file."""
+    return _send_frontend("report_chat.js")
+
+
+@form_bp.route("/clinical-agent-test.css")
+def clinical_agent_test_css():
+    """Serve the clinical agent test page stylesheet."""
+    return _send_frontend("clinical-agent-test.css")
+
+
+@form_bp.route("/clinical-agent-test.js")
+def clinical_agent_test_js():
+    """Serve the clinical agent test page JavaScript."""
+    return _send_frontend("clinical-agent-test.js")
 
 
 @form_bp.route("/pedt")
@@ -187,6 +310,7 @@ def submissions():
         uploaded_file_summary = _maybe_json(form_data.pop("uploadedFileSummary", None))
         submission_id = row["id"]
         code_no = f"INT-{submission_id}"
+        report_chat_enabled = _report_chat_enabled(pipeline)
 
         submissions.append({
             "id": submission_id,
@@ -198,6 +322,8 @@ def submissions():
             "form_panel_id": f"form-panel-{submission_id}",
             "ai_panel_id": f"ai-panel-{submission_id}",
             "ai_summary_panel_id": f"ai-summary-panel-{submission_id}",
+            "report_chat_panel_id": f"report-chat-panel-{submission_id}",
+            "report_chat_enabled": report_chat_enabled,
             "upload_panel_id": f"upload-panel-{submission_id}",
             "iief_panel_id": f"iief-panel-{submission_id}",
             "pedt_panel_id": f"pedt-panel-{submission_id}",
@@ -222,3 +348,57 @@ def submissions():
         })
 
     return render_template("submissions.html", submissions=submissions)
+
+
+@form_bp.get("/report-chat")
+def report_chat_page():
+    """Render the dedicated report chat page for one completed report."""
+    if not submissions_authorized():
+        return password_required_response()
+
+    requested_id = (
+        request.args.get("submission_id")
+        or request.args.get("codeNo")
+        or request.args.get("code_no")
+    )
+    submission_id = _normalize_submission_lookup(requested_id)
+    if not submission_id:
+        return Response("submission_id must be a number or code like INT-1.", 400)
+
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT id, full_name, age, mobile, email, form_data
+            FROM intake_forms
+            WHERE id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+    finally:
+        conn.close()
+
+    if not row:
+        return Response(f"Submission INT-{submission_id} was not found.", 404)
+
+    form_data = load_form_data(row["form_data"])
+    pipeline = form_data.get("clinical_pipeline") or {}
+    if not _report_chat_enabled(pipeline):
+        return Response("Report chat is available only after a final report is generated.", 409)
+
+    code_no = f"INT-{row['id']}"
+    report_pdf = pipeline.get("report_pdf") or {}
+    submission = {
+        "id": int(row["id"]),
+        "full_name": row["full_name"] or "",
+        "age": row["age"] or "",
+        "mobile": row["mobile"] or "",
+        "email": row["email"] or "",
+        "code_no": code_no,
+        "report_pdf_url": resolve_report_pdf_url(report_pdf, code_no),
+        "ai_summary_points": build_ai_summary_points(pipeline),
+        "ai_html": _report_chat_ai_html(pipeline),
+    }
+
+    current_app.jinja_env.cache.clear()
+    return render_template("report_chat.html", submission=submission)

@@ -1,4 +1,3 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap");
 
 /* Purpose: page frame, type, and base form controls. */
 * { box-sizing: border-box; }
@@ -984,7 +983,7 @@ button[type="submit"]:disabled {
   --nv-radius-sm: 8px;
   --nv-radius-md: 10px;
   --nv-radius-lg: 14px;
-  --nv-sidebar-width: 280px;
+  --nv-sidebar-width: 236px;
   --nv-header-height: 72px;
 }
 

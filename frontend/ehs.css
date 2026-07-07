@@ -1,4 +1,3 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@400;500;600;700&display=swap');
 
 :root {
     --ehs-primary: #0f766e;
@@ -20,9 +19,7 @@
 
 body {
     font-family: 'Inter', Georgia, Arial, sans-serif;
-    background:
-        radial-gradient(circle at top left, rgba(20, 184, 166, 0.08), transparent 30%),
-        linear-gradient(180deg, #f8fffe 0%, var(--ehs-bg) 100%);
+    background: var(--ehs-bg);
     color: var(--ehs-text);
     padding: 40px 20px;
     line-height: 1.6;

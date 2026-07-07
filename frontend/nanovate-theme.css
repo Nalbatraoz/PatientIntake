@@ -1,0 +1,722 @@
+/* Shared Nanovate dark theme overrides. Loaded after page-specific styles. */
+:root,
+:root[data-theme="dark"] {
+  --nv-white: #ffffff;
+  --nv-black: #000000;
+  --nv-bg: #121212;
+  --nv-surface: #121212;
+  --nv-bg-card: #191919;
+  --nv-bg-sidebar: #0d0d0d;
+  --nv-bg-elevated: #161616;
+  --nv-bg-panel: #0d0d0d;
+  --nv-sidebar: #0d0d0d;
+  --nv-sidebar-soft: #161616;
+  --nv-sidebar-hover: #1f1f1f;
+  --nv-border: #262626;
+  --nv-border-strong: #404040;
+  --nv-text: #ffffff;
+  --nv-muted: #a3a3a3;
+  --nv-muted-2: #737373;
+  --nv-text-muted: #737373;
+  --nv-text-soft: #a3a3a3;
+  --nv-accent: #38b98d;
+  --nv-accent-2: #4fd0a5;
+  --nv-accent-bright: #00d092;
+  --nv-danger: #cc552b;
+  --nv-warning: #eab308;
+  --nv-success: #22c55e;
+  --nv-radius-sm: 6px;
+  --nv-radius-md: 8px;
+  --nv-radius-lg: 10px;
+  --nv-radius-xl: 16px;
+  --nv-radius-full: 9999px;
+  --nv-shadow-soft: 0 12px 24px rgba(0, 0, 0, 0.22);
+}
+
+html {
+  min-height: 100%;
+  background: var(--nv-bg-sidebar) !important;
+  color: var(--nv-text) !important;
+}
+
+body {
+  min-height: 100vh;
+  background: var(--nv-bg-sidebar) !important;
+  color: var(--nv-text) !important;
+  font-family: Inter, "Segoe UI", Arial, sans-serif !important;
+}
+
+body:not(.report-chat-body) {
+  padding: 24px !important;
+}
+
+.nv-brand,
+.nv-brand-name {
+  color: var(--nv-white) !important;
+  opacity: 1 !important;
+}
+
+.nv-page,
+.nv-header,
+.nv-content {
+  background: var(--nv-bg) !important;
+}
+
+.nv-header,
+.nv-profile,
+.nv-search {
+  border-color: var(--nv-border) !important;
+  background: var(--nv-bg-card) !important;
+}
+
+.nv-search {
+  display: none !important;
+}
+
+.nv-breadcrumbs,
+.nv-profile-meta {
+  color: var(--nv-text-muted) !important;
+}
+
+.nv-page-title,
+.nv-profile-name {
+  color: var(--nv-text) !important;
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: var(--nv-accent-bright) !important;
+}
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+label,
+legend,
+strong,
+th {
+  color: var(--nv-text) !important;
+  letter-spacing: 0 !important;
+}
+
+p,
+li,
+td,
+small,
+.hint,
+.subtitle,
+.muted,
+.scan-meta,
+.scan-notes,
+.pubmed-meta,
+.ai-score,
+.report-chat-message-label,
+.report-chat-status {
+  color: var(--nv-text-soft) !important;
+}
+
+h2,
+.ai-section-title,
+.iief-domain-scores h4,
+.iief-answers-table h4 {
+  border-color: var(--nv-accent) !important;
+}
+
+main,
+.container {
+  background: transparent !important;
+}
+
+form,
+.card,
+.scale-card,
+.results-card,
+.result-panel,
+.submission,
+.empty,
+details,
+.form-details,
+.iief-details,
+.patient-code-panel,
+.medical-scan-notice,
+.patient-info-card,
+.scan-alerts,
+.scan-result-item,
+.pubmed-card,
+.passage,
+.message-dialog,
+.camera-modal-content,
+.camera-modal-header,
+.camera-modal-controls,
+.ai-report,
+.ai-summary-panel,
+.ai-report-content,
+.ai-section,
+.report-document-panel,
+.report-document-heading,
+.report-document-scroll,
+.report-document-scroll .ai-report-content,
+.report-document-scroll .ai-section,
+.report-chat-main,
+.clinical-test-page form,
+.clinical-test-page .result-panel,
+.clinical-test-page details {
+  border-color: var(--nv-border) !important;
+  background: var(--nv-bg-card) !important;
+  color: var(--nv-text) !important;
+  box-shadow: var(--nv-shadow-soft);
+}
+
+form,
+.card,
+.scale-card,
+.results-card,
+.submission,
+.empty,
+details,
+.iief-details,
+.patient-code-panel,
+.result-panel,
+.clinical-test-page form,
+.clinical-test-page .result-panel,
+.clinical-test-page details {
+  border: 1px solid var(--nv-border) !important;
+  border-radius: var(--nv-radius-md) !important;
+}
+
+section,
+.cover-section,
+.submission-panel,
+.iief-summary-header,
+.iief-domain-scores,
+.iief-answers-table {
+  border-color: var(--nv-border) !important;
+}
+
+.summary,
+.stat-badge,
+.visit-type-card,
+.submission-tab,
+.language-toggle,
+.form-details summary,
+.ai-summary-points li,
+.question-row,
+.question-row.shaded .column-left,
+.question-row.shaded .column-middle,
+.question-row.shaded .column-right,
+.scale-score,
+.conditions-table tr,
+.data-entry-table-wrapper tr,
+.report-chat-prompts button {
+  border-color: var(--nv-border) !important;
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+.cover-header {
+  border-bottom-color: rgba(56, 185, 141, 0.45) !important;
+}
+
+.cover-header h1,
+.cover-header .subtitle,
+.cover-section h2,
+.patient-info-card h3,
+.weeks-instruction h3,
+.pulse-text,
+.definitions-list li strong,
+.q-number,
+.question-en,
+.option-number,
+.opt-en,
+.score-label,
+.severity-label,
+.results-card h2 {
+  color: var(--nv-text) !important;
+}
+
+.cover-section p,
+.ar-text,
+.ar-inline,
+.guidelines-list li,
+.definitions-list li,
+.info-label,
+.question-ar,
+.opt-ar,
+.option-item,
+.scale-description,
+.score-option-text,
+.completion-message,
+.completion-hint,
+.completion-code-label,
+.results-grid-summary p,
+.score-display p,
+.severity-container p {
+  color: var(--nv-text-soft) !important;
+}
+
+.patient-info-card,
+.definitions-card,
+.definitions-box,
+.domain-score-card,
+.results-grid-summary,
+.score-display,
+.severity-container,
+.cover-section,
+.iief-summary-header,
+.iief-domain-scores,
+.iief-answers-table,
+.scale-card,
+.results-card {
+  border-color: var(--nv-border) !important;
+  background: var(--nv-bg-card) !important;
+  color: var(--nv-text) !important;
+}
+
+.definitions-box,
+.completion-code-box {
+  border: 1px solid var(--nv-border-strong) !important;
+  background: linear-gradient(180deg, rgba(31, 31, 31, 0.96) 0%, rgba(13, 13, 13, 0.98) 100%) !important;
+  color: var(--nv-text) !important;
+  box-shadow: none !important;
+}
+
+.completion-code-box {
+  padding: 18px !important;
+}
+
+.flat-input {
+  border-bottom-color: var(--nv-border-strong) !important;
+  color: var(--nv-text) !important;
+}
+
+.section-divider {
+  border-top-color: var(--nv-border-strong) !important;
+}
+
+.domain-table th {
+  border-top-color: var(--nv-border-strong) !important;
+  border-bottom-color: var(--nv-border-strong) !important;
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+.domain-table td {
+  border-bottom-color: var(--nv-border) !important;
+  background: var(--nv-bg-card) !important;
+  color: var(--nv-text-soft) !important;
+}
+
+.domain-table tr:last-child td {
+  border-bottom-color: var(--nv-border-strong) !important;
+}
+
+.scale-table,
+.scale-row,
+.scale-score,
+.scale-description {
+  border-color: var(--nv-border) !important;
+}
+
+.scale-description {
+  background: var(--nv-bg-card) !important;
+  color: var(--nv-text-soft) !important;
+}
+
+.column-left,
+.column-middle,
+.column-right {
+  border-color: var(--nv-border) !important;
+}
+
+.question-row:not(.shaded) .column-left,
+.question-row:not(.shaded) .column-middle,
+.question-row:not(.shaded) .column-right {
+  background: var(--nv-bg-card) !important;
+}
+
+.question-row.shaded .column-left,
+.question-row.shaded .column-middle,
+.question-row.shaded .column-right {
+  background: var(--nv-bg-elevated) !important;
+}
+
+.option-item {
+  background: transparent !important;
+}
+
+.option-item:hover {
+  border-color: rgba(56, 185, 141, 0.28) !important;
+  background: rgba(56, 185, 141, 0.08) !important;
+}
+
+.option-item:has(input[type="radio"]:checked),
+.option-item:has(input:checked) {
+  border-color: rgba(56, 185, 141, 0.45) !important;
+  background: rgba(56, 185, 141, 0.14) !important;
+}
+
+.option-item:has(input[type="radio"]:checked) .option-number,
+.option-item:has(input[type="radio"]:checked) .opt-en,
+.option-item:has(input:checked) .option-number,
+.option-item:has(input:checked) .opt-en {
+  color: var(--nv-accent-bright) !important;
+}
+
+.scorer-box {
+  border-color: var(--nv-border-strong) !important;
+  background: var(--nv-bg-panel) !important;
+  color: var(--nv-text) !important;
+}
+
+.scorer-box.filled {
+  border-color: var(--nv-accent) !important;
+  background: rgba(56, 185, 141, 0.14) !important;
+  color: var(--nv-accent-bright) !important;
+}
+
+.stat-badge,
+.domain-score-card,
+.score-display,
+.severity-container {
+  box-shadow: none !important;
+}
+
+.severity-none,
+.severity-excellent,
+.stat-badge.severity-severity-none {
+  border-color: rgba(34, 197, 94, 0.4) !important;
+  background: rgba(34, 197, 94, 0.12) !important;
+  color: #86efac !important;
+}
+
+.severity-none span,
+.severity-excellent span,
+.stat-badge.severity-severity-none span {
+  color: #86efac !important;
+}
+
+.severity-mild,
+.stat-badge.severity-severity-mild {
+  border-color: rgba(234, 179, 8, 0.42) !important;
+  background: rgba(234, 179, 8, 0.14) !important;
+  color: #fde047 !important;
+}
+
+.severity-mild span,
+.stat-badge.severity-severity-mild span {
+  color: #fde047 !important;
+}
+
+.severity-mild-mod,
+.severity-moderate,
+.severity-improved,
+.severity-unchanged,
+.stat-badge.severity-severity-mild-mod,
+.stat-badge.severity-severity-moderate {
+  border-color: rgba(245, 158, 11, 0.42) !important;
+  background: rgba(245, 158, 11, 0.14) !important;
+  color: #fdba74 !important;
+}
+
+.severity-mild-mod span,
+.severity-moderate span,
+.severity-improved span,
+.severity-unchanged span,
+.stat-badge.severity-severity-mild-mod span,
+.stat-badge.severity-severity-moderate span {
+  color: #fdba74 !important;
+}
+
+.severity-severe,
+.severity-lower,
+.stat-badge.severity-severity-severe {
+  border-color: rgba(204, 85, 43, 0.42) !important;
+  background: rgba(204, 85, 43, 0.14) !important;
+  color: #fdba9a !important;
+}
+
+.severity-severe span,
+.severity-lower span,
+.stat-badge.severity-severity-severe span {
+  color: #fdba9a !important;
+}
+
+.visit-type-card strong,
+.visit-type-card small,
+.stat-badge strong,
+.stat-badge span,
+.submission h2,
+.submissions-page h1,
+.clinical-test-page h1,
+.clinical-test-page h2,
+.clinical-test-page h3,
+.ai-summary-header h3,
+.pubmed-title,
+.report-document-heading h2,
+.report-chat-topbar h1 {
+  color: var(--nv-text) !important;
+}
+
+.visit-type-options input:checked + .visit-type-card,
+.submission-tab-active,
+.language-toggle[aria-pressed="true"],
+.report-chat-launch {
+  border-color: var(--nv-accent) !important;
+  background: rgba(56, 185, 141, 0.14) !important;
+  color: var(--nv-accent-bright) !important;
+  box-shadow: 0 0 0 3px rgba(56, 185, 141, 0.12) !important;
+}
+
+.submission-tab:hover,
+.language-toggle:hover,
+.report-sidebar-action:hover,
+.report-pdf-link:hover {
+  border-color: var(--nv-border-strong) !important;
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+input,
+select,
+textarea,
+.data-entry-table-wrapper td input {
+  border: 1px solid var(--nv-border-strong) !important;
+  border-radius: var(--nv-radius-sm) !important;
+  background: var(--nv-bg-panel) !important;
+  color: var(--nv-text) !important;
+  box-shadow: none !important;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: var(--nv-text-muted) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: var(--nv-accent) !important;
+  outline: none !important;
+  box-shadow: 0 0 0 3px rgba(56, 185, 141, 0.16) !important;
+}
+
+input[type="checkbox"],
+input[type="radio"] {
+  accent-color: var(--nv-accent);
+}
+
+button,
+.button-link,
+.secondary-button,
+.ai-download-button,
+.submission-download,
+button[type="submit"],
+.clinical-test-page button,
+.camera-trigger-btn,
+.camera-capture-btn {
+  border: 1px solid rgba(56, 185, 141, 0.52) !important;
+  border-radius: var(--nv-radius-md) !important;
+  background: var(--nv-accent) !important;
+  color: var(--nv-bg-sidebar) !important;
+  font-weight: 700 !important;
+  box-shadow: none !important;
+}
+
+.copy-code-button {
+  border-color: var(--nv-border-strong) !important;
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+button:hover,
+.button-link:hover,
+.secondary-button:hover,
+.ai-download-button:hover,
+.submission-download:hover,
+button[type="submit"]:hover,
+.clinical-test-page button:hover {
+  border-color: var(--nv-accent-bright) !important;
+  background: var(--nv-accent-bright) !important;
+  color: var(--nv-bg-sidebar) !important;
+}
+
+.copy-code-button:hover {
+  border-color: var(--nv-accent) !important;
+  background: rgba(56, 185, 141, 0.14) !important;
+  color: var(--nv-accent-bright) !important;
+}
+
+button:disabled,
+.submission-tab-muted {
+  border-color: var(--nv-border) !important;
+  background: #202020 !important;
+  color: var(--nv-text-muted) !important;
+}
+
+table,
+th,
+td,
+.conditions-table,
+.data-entry-table-wrapper table,
+.iief-answers-table th,
+.iief-answers-table td,
+.domain-table th,
+.domain-table td {
+  border-color: var(--nv-border) !important;
+}
+
+th,
+.submissions-page th,
+.conditions-table td:first-child,
+.data-entry-table-wrapper tbody td:first-child,
+.data-entry-table-wrapper td:not(:first-child)::before {
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+td,
+.submissions-page td,
+.conditions-table td,
+.data-entry-table-wrapper td {
+  background: var(--nv-bg-card) !important;
+  color: var(--nv-text-soft) !important;
+}
+
+.iief-answers-table table,
+.iief-answers-table tbody tr,
+.conditions-table tbody tr,
+.data-entry-table-wrapper tbody tr {
+  background: transparent !important;
+}
+
+.iief-answers-table th,
+.iief-answers-table td {
+  background: var(--nv-bg-card) !important;
+}
+
+.ai-report-title {
+  border-bottom: 1px solid var(--nv-border) !important;
+  background: var(--nv-bg-panel) !important;
+  color: var(--nv-text) !important;
+}
+
+.ai-summary-box,
+.ai-decision,
+.ai-flag,
+.ai-ok,
+.clinical-test-page .flag,
+.clinical-test-page .ok,
+.input-error,
+.field-wrapper-error,
+.error-highlight,
+.question-row.error-highlight {
+  border-color: var(--nv-accent) !important;
+  background: rgba(56, 185, 141, 0.08) !important;
+  color: var(--nv-text) !important;
+}
+
+.ai-decision {
+  border-left-color: var(--nv-warning) !important;
+}
+
+.ai-flag,
+.clinical-test-page .flag,
+.input-error,
+.field-wrapper-error,
+.error-highlight,
+.question-row.error-highlight {
+  border-left-color: var(--nv-danger) !important;
+  border-color: rgba(204, 85, 43, 0.42) !important;
+  background: rgba(204, 85, 43, 0.12) !important;
+}
+
+.ai-ok,
+.clinical-test-page .ok {
+  border-left-color: var(--nv-success) !important;
+  background: rgba(34, 197, 94, 0.1) !important;
+}
+
+.ai-status,
+.ai-badge,
+.severity-badge {
+  border-radius: var(--nv-radius-full) !important;
+  background: var(--nv-accent) !important;
+  color: var(--nv-bg-sidebar) !important;
+}
+
+.report-chat-main.nv-niva-panel,
+.nv-niva-panel {
+  border-color: var(--nv-border-strong) !important;
+  background: #0b040f !important;
+}
+
+.report-document-scroll .ai-section,
+.report-document-scroll .ai-summary-panel,
+.report-document-scroll .pubmed-card {
+  background: var(--nv-bg-card) !important;
+}
+
+.report-document-scroll p,
+.report-document-scroll li,
+.report-document-scroll td,
+.report-document-scroll th,
+.report-document-scroll span,
+.report-document-scroll em,
+.report-document-scroll small,
+.report-document-scroll .pubmed-abstract {
+  color: var(--nv-text-soft) !important;
+}
+
+.report-document-scroll .ai-section-title,
+.report-document-scroll .ai-list strong,
+.report-document-scroll strong,
+.report-document-scroll .pubmed-title {
+  color: var(--nv-text) !important;
+}
+
+.report-sidebar-mark,
+.report-chat-empty-mark {
+  background: var(--nv-accent) !important;
+  color: var(--nv-bg-sidebar) !important;
+}
+
+.report-sidebar-action,
+.report-pdf-link {
+  border-color: var(--nv-border-strong) !important;
+  background: var(--nv-bg-elevated) !important;
+  color: var(--nv-text) !important;
+}
+
+.camera-modal {
+  background: rgba(0, 0, 0, 0.72) !important;
+}
+
+.message-overlay {
+  background: rgba(0, 0, 0, 0.64) !important;
+}
+
+pre,
+code {
+  background: var(--nv-bg-panel) !important;
+  color: var(--nv-text) !important;
+}
+
+@media (max-width: 760px) {
+  body:not(.report-chat-body) {
+    padding: 12px !important;
+  }
+
+  .conditions-table tr,
+  .data-entry-table-wrapper tr {
+    background: var(--nv-bg-card) !important;
+  }
+}

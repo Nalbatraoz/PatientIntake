@@ -15,6 +15,7 @@ from api.low_libido import low_libido_bp
 from api.patient_routes import patient_bp
 from api.pedt import pedt_bp
 from api.rag_routes import rag_bp
+from api.report_chat_routes import report_chat_bp
 from api.submissions_routes import submissions_bp
 from api.utils import init_db
 
@@ -59,6 +60,7 @@ app.register_blueprint(patient_bp)
 app.register_blueprint(drug_scan_bp)
 app.register_blueprint(submissions_bp)
 app.register_blueprint(rag_bp)
+app.register_blueprint(report_chat_bp)
 app.register_blueprint(notifications_bp)
 app.register_blueprint(clinical_agent_bp)
 app.register_blueprint(ehs_bp)

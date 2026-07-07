@@ -402,6 +402,7 @@ GEMINI_CLINICAL_MODEL = os.environ.get("GEMINI_CLINICAL_MODEL", "gemini-2.5-flas
 GEMINI_RESEARCH_MODEL = os.environ.get("GEMINI_RESEARCH_MODEL", "gemini-2.5-flash")
 GEMINI_EVIDENCE_REVIEWER_MODEL = os.environ.get("GEMINI_EVIDENCE_REVIEWER_MODEL", "gemini-2.5-flash")
 GEMINI_REPORT_MODEL = os.environ.get("GEMINI_REPORT_MODEL", "gemini-2.5-flash")
+GEMINI_REPORT_CHAT_MODEL = os.environ.get("GEMINI_REPORT_CHAT_MODEL", GEMINI_REPORT_MODEL)
 GEMINI_OCR_MODEL = os.environ.get("GEMINI_OCR_MODEL", "gemini-3.5-flash")
 TESSERACT_CMD = resolve_tesseract_cmd()
 TESSERACT_LANG = os.environ.get("TESSERACT_LANG", "eng").strip() or "eng"
@@ -447,6 +448,7 @@ def get_db_connection():
     """)
     conn.commit()
     ensure_intake_form_schema(conn)
+    ensure_report_chat_schema(conn)
     return conn
 
 
@@ -459,6 +461,108 @@ def ensure_intake_form_schema(conn):
     if "patient_password_hash" not in existing_columns:
         cur.execute("ALTER TABLE intake_forms ADD COLUMN patient_password_hash TEXT")
         conn.commit()
+
+def ensure_report_chat_schema(conn):
+    """Create the report-specific chat audit table when needed."""
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS report_chat_messages (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            submission_id INTEGER NOT NULL,
+            code_no TEXT,
+            question TEXT NOT NULL,
+            answer_json TEXT NOT NULL,
+            answer_text TEXT,
+            model TEXT,
+            context_hash TEXT,
+            created_at TEXT NOT NULL,
+            FOREIGN KEY(submission_id) REFERENCES intake_forms(id)
+        )
+    """)
+    cur.execute("""
+        CREATE INDEX IF NOT EXISTS idx_report_chat_messages_submission_created
+        ON report_chat_messages(submission_id, created_at, id)
+    """)
+    conn.commit()
+
+def save_report_chat_message(submission_id, question, answer, *, model="", context_hash=""):
+    """Persist one doctor/report chat exchange for audit history."""
+    created_at = datetime.utcnow().isoformat(timespec="seconds") + "Z"
+    submission_id = int(submission_id)
+    code_no = f"INT-{submission_id}"
+    answer_json = json.dumps(answer or {}, ensure_ascii=False)
+    answer_text = ""
+    if isinstance(answer, dict):
+        answer_text = str(answer.get("direct_answer") or "")
+
+    conn = get_db_connection()
+    try:
+        cur = conn.execute(
+            """
+            INSERT INTO report_chat_messages
+                (submission_id, code_no, question, answer_json, answer_text, model, context_hash, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+            """,
+            (
+                submission_id,
+                code_no,
+                str(question or ""),
+                answer_json,
+                answer_text,
+                str(model or ""),
+                str(context_hash or ""),
+                created_at,
+            ),
+        )
+        conn.commit()
+        chat_id = cur.lastrowid
+    finally:
+        conn.close()
+
+    return {
+        "id": chat_id,
+        "submission_id": submission_id,
+        "code_no": code_no,
+        "question": str(question or ""),
+        "answer": answer or {},
+        "model": str(model or ""),
+        "context_hash": str(context_hash or ""),
+        "created_at": created_at,
+    }
+
+def list_report_chat_history(submission_id, limit=50):
+    """Return saved report chat exchanges for one submission only."""
+    submission_id = int(submission_id)
+    limit = clamp_int(limit, 50, 1, 200)
+    conn = get_db_connection()
+    try:
+        rows = conn.execute(
+            """
+            SELECT id, submission_id, code_no, question, answer_json, answer_text, model, context_hash, created_at
+            FROM report_chat_messages
+            WHERE submission_id = ?
+            ORDER BY id DESC
+            LIMIT ?
+            """,
+            (submission_id, limit),
+        ).fetchall()
+    finally:
+        conn.close()
+
+    history = []
+    for row in reversed(rows):
+        history.append({
+            "id": row["id"],
+            "submission_id": row["submission_id"],
+            "code_no": row["code_no"] or f"INT-{row['submission_id']}",
+            "question": row["question"] or "",
+            "answer": safe_json_loads(row["answer_json"], {}),
+            "answer_text": row["answer_text"] or "",
+            "model": row["model"] or "",
+            "context_hash": row["context_hash"] or "",
+            "created_at": row["created_at"] or "",
+        })
+    return history
 
 def generate_next_patient_code():
     """Generate the next available patient code (e.g., INT-1, INT-2, etc.)."""
@@ -935,6 +1039,15 @@ def clinical_agent_dependencies():
         "parse_possible_drug_names": parse_possible_drug_names,
         "retrieve_rag_context": build_crewai_clinical_context,
         "safe_json_loads": safe_json_loads,
+    }
+
+def report_chat_dependencies():
+    """Package shared helpers for the report chat agent entrypoint."""
+    return {
+        "get_db_connection": get_db_connection,
+        "safe_json_loads": safe_json_loads,
+        "gemini_api_key": GEMINI_API_KEY,
+        "gemini_report_chat_model": GEMINI_REPORT_CHAT_MODEL,
     }
 
 def build_crewai_clinical_context(query, top_k=6):

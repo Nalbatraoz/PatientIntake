@@ -735,10 +735,6 @@
           <span class="nv-page-title">${escapeHtml(title)}</span>
         </div>
         <div class="nv-header-actions">
-          <div class="nv-search" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            <span>Search</span>
-          </div>
           <div class="nv-profile">
             <span class="nv-avatar" data-profile-avatar>P</span>
             <span class="nv-profile-details">

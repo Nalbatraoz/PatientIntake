@@ -1,3 +1,38 @@
+function syncSubmissionPanelState(card) {
+  if (!card) return;
+  const layout = card.querySelector("[data-submission-panels-layout]");
+  const hasPrimaryOpen = Array.from(
+    card.querySelectorAll(".submission-panel:not([data-report-chat-panel])")
+  ).some(function (panel) {
+    return !panel.hidden;
+  });
+  const chatPanel = card.querySelector("[data-report-chat-panel]");
+  const hasChatOpen = Boolean(chatPanel && !chatPanel.hidden);
+
+  if (layout) {
+    layout.classList.toggle("has-primary-open", hasPrimaryOpen);
+    layout.classList.toggle("has-report-chat-open", hasChatOpen);
+  }
+}
+
+function ensureReportChatOpen(card) {
+  if (!card) return null;
+  const chatPanel = card.querySelector("[data-report-chat-panel]");
+  if (!chatPanel) return null;
+  const chatButton = card.querySelector(`[data-panel-target="${chatPanel.id}"]`);
+  const shouldLoad = chatPanel.hidden;
+  chatPanel.hidden = false;
+  if (chatButton) {
+    chatButton.setAttribute("aria-expanded", "true");
+    chatButton.classList.add("submission-tab-active");
+  }
+  if (shouldLoad && window.ReportChatPanel) {
+    window.ReportChatPanel.loadHistory(chatPanel);
+  }
+  syncSubmissionPanelState(card);
+  return chatPanel;
+}
+
 document.addEventListener("click", function (event) {
   const button = event.target.closest("[data-panel-target]");
   if (!button) return;
@@ -6,18 +41,392 @@ document.addEventListener("click", function (event) {
   if (!card || !panel) return;
 
   const shouldOpen = panel.hidden;
-  card.querySelectorAll(".submission-panel").forEach(function (item) {
-    item.hidden = true;
-  });
-  card.querySelectorAll("[data-panel-target]").forEach(function (item) {
-    item.setAttribute("aria-expanded", "false");
-    item.classList.remove("submission-tab-active");
+  const isChatPanel = panel.matches("[data-report-chat-panel]");
+
+  if (isChatPanel) {
+    panel.hidden = !shouldOpen;
+    button.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    button.classList.toggle("submission-tab-active", shouldOpen);
+  } else {
+    card.querySelectorAll(".submission-panel:not([data-report-chat-panel])").forEach(function (item) {
+      item.hidden = true;
+    });
+    card.querySelectorAll("[data-panel-target]").forEach(function (item) {
+      const targetPanel = document.getElementById(item.dataset.panelTarget);
+      if (targetPanel && targetPanel.matches("[data-report-chat-panel]")) {
+        return;
+      }
+      item.setAttribute("aria-expanded", "false");
+      item.classList.remove("submission-tab-active");
+    });
+
+    panel.hidden = !shouldOpen;
+    button.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
+    button.classList.toggle("submission-tab-active", shouldOpen);
+    if (shouldOpen) ensureReportChatOpen(card);
+  }
+
+  if (shouldOpen && panel.matches("[data-report-chat-panel]") && window.ReportChatPanel) {
+    window.ReportChatPanel.loadHistory(panel);
+  }
+  syncSubmissionPanelState(card);
+});
+
+document.addEventListener("DOMContentLoaded", function () {
+  document.querySelectorAll(".submission").forEach(syncSubmissionPanelState);
+});
+
+(function () {
+  const loadedPanels = new WeakSet();
+  const loadingPanels = new WeakSet();
+
+  function chatEscapeHtml(value) {
+    return String(value || "").replace(/[&<>"']/g, function (char) {
+      return {
+        "&": "&amp;",
+        "<": "&lt;",
+        ">": "&gt;",
+        '"': "&quot;",
+        "'": "&#39;"
+      }[char];
+    });
+  }
+
+  function messagesElement(panel) {
+    return panel.querySelector("[data-report-chat-messages]");
+  }
+
+  function statusElement(panel) {
+    return panel.querySelector("[data-report-chat-status]");
+  }
+
+  function setSubmitButtonState(button, isLoading) {
+    if (!button) return;
+    const idleLabel = button.dataset.idleLabel || "Ask";
+    const loadingLabel = button.dataset.loadingLabel || "Generating...";
+    button.disabled = Boolean(isLoading);
+    const label = button.querySelector("span");
+    if (label) {
+      label.textContent = isLoading ? loadingLabel : idleLabel;
+    } else {
+      button.textContent = isLoading ? loadingLabel : idleLabel;
+    }
+    button.setAttribute("aria-busy", isLoading ? "true" : "false");
+  }
+
+  function setStatus(panel, message, isError) {
+    const status = statusElement(panel);
+    if (!status) return;
+    status.textContent = message || "";
+    status.classList.toggle("is-error", Boolean(isError));
+  }
+
+  async function readJsonResponse(response) {
+    let payload = {};
+    try {
+      payload = await response.json();
+    } catch {
+      payload = {};
+    }
+    if (!response.ok) {
+      throw new Error(payload.error || "The report chat request failed.");
+    }
+    return payload;
+  }
+
+  function clearEmptyState(panel) {
+    const empty = panel.querySelector("[data-report-chat-empty]");
+    if (empty) empty.remove();
+  }
+
+  function emptyStateHtml() {
+    return `
+      <div class="report-chat-empty" data-report-chat-empty>
+        <span class="report-chat-empty-mark" aria-hidden="true">N</span>
+        <span>No questions yet.</span>
+      </div>
+    `;
+  }
+
+  function doctorAvatarHtml() {
+    return `
+      <span class="nv-niva-message-item__avatar report-chat-avatar report-chat-avatar-doctor">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+          <circle cx="12" cy="7" r="4" stroke="currentColor" stroke-width="2"/>
+        </svg>
+      </span>
+    `;
+  }
+
+  function agentAvatarHtml() {
+    return `
+      <span class="nv-niva-message-item__avatar report-chat-avatar report-chat-avatar-agent" aria-hidden="true">
+        <span>N</span>
+      </span>
+    `;
+  }
+
+  function setTyping(panel, isTyping) {
+    const messages = messagesElement(panel);
+    if (!messages) return;
+    const existing = messages.querySelector("[data-report-chat-typing]");
+    if (!isTyping) {
+      if (existing) existing.remove();
+      return;
+    }
+    if (existing) return;
+    clearEmptyState(panel);
+    messages.insertAdjacentHTML("beforeend", `
+      <div class="nv-niva-typing report-chat-typing" data-report-chat-typing aria-label="Nanovate is typing">
+        <span></span><span></span><span></span>
+      </div>
+    `);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function appendMessage(panel, role, html, meta) {
+    const messages = messagesElement(panel);
+    if (!messages) return;
+    clearEmptyState(panel);
+    const isDoctor = role === "doctor";
+    const roleLabel = isDoctor ? "Doctor" : "Nanovate";
+    const roleClass = isDoctor ? "doctor" : "agent";
+    const metaHtml = meta ? `<span class="nv-niva-message-item__time">${chatEscapeHtml(meta)}</span>` : "";
+    const nameHtml = `<span class="nv-niva-message-item__name">${roleLabel}</span>`;
+    const metaRow = isDoctor ? `${metaHtml}${nameHtml}` : `${nameHtml}${metaHtml}`;
+    const avatar = isDoctor ? doctorAvatarHtml() : agentAvatarHtml();
+    const content = `
+      <div class="nv-niva-message-item__content">
+        <div class="nv-niva-message-item__meta">${metaRow}</div>
+        <div class="report-chat-message-body nv-niva-message-item__bubble" dir="auto">${html}</div>
+      </div>
+    `;
+    messages.insertAdjacentHTML("beforeend", `
+      <article class="report-chat-message report-chat-message-${roleClass} nv-niva-message-item${isDoctor ? " nv-niva-message-item--user" : ""}" data-niva-role="${isDoctor ? "user" : "niva"}">
+        ${isDoctor ? `${content}${avatar}` : `${avatar}${content}`}
+      </article>
+    `);
+    messages.scrollTop = messages.scrollHeight;
+  }
+
+  function appendDoctorMessage(panel, question, meta) {
+    appendMessage(panel, "doctor", `<p>${chatEscapeHtml(question)}</p>`, meta);
+  }
+
+  function renderReferences(references) {
+    if (!Array.isArray(references) || !references.length) return "";
+    const items = references.map(function (item) {
+      if (!item) return "";
+      const evidenceSource = chatEscapeHtml(
+        item.evidence_source || item.label || "Saved Clinical Record"
+      );
+      const recordLocation = chatEscapeHtml(
+        item.record_location || item.source_type || "Saved clinical record"
+      );
+      const supportingEvidence = chatEscapeHtml(
+        item.supporting_evidence || item.support || ""
+      );
+      return `
+        <li>
+          <strong>${evidenceSource}</strong>
+          <span>${recordLocation}</span>
+          ${supportingEvidence ? `<p>${supportingEvidence}</p>` : ""}
+        </li>
+      `;
+    }).join("");
+    return `<div class="report-chat-references"><h4>References</h4><ul>${items}</ul></div>`;
+  }
+
+  function renderList(title, values) {
+    if (!Array.isArray(values) || !values.length) return "";
+    const items = values.map(function (value) {
+      return `<li>${chatEscapeHtml(value)}</li>`;
+    }).join("");
+    return `<div class="report-chat-detail"><h4>${title}</h4><ul>${items}</ul></div>`;
+  }
+
+  function normalizeReferences(answer) {
+    const candidates = [
+      answer && answer.references,
+      answer && answer.evidence,
+      answer && answer.citations,
+      answer && answer.supporting_references,
+      answer && answer.sources
+    ];
+    const list = candidates.find(Array.isArray) || [];
+    return list.map(function (item) {
+      if (!item) return null;
+      if (typeof item === "string") {
+        return {
+          evidence_source: "Saved Clinical Record",
+          record_location: "Saved clinical record",
+          supporting_evidence: item
+        };
+      }
+      if (typeof item === "object") {
+        return {
+          evidence_source: item.evidence_source || item.label || item.title || "Saved Clinical Record",
+          record_location: item.record_location || item.section || item.source_type || item.type || item.kind || "Saved clinical record",
+          supporting_evidence: item.supporting_evidence || item.support || item.text || item.quote || item.detail || ""
+        };
+      }
+      return null;
+    }).filter(Boolean);
+  }
+
+  function normalizeAnswer(answer, answerText) {
+    if (typeof answer === "string") {
+      return {
+        direct: answer,
+        reasoning: "",
+        references: [],
+        uncertainty: "",
+        limitations: []
+      };
+    }
+
+    const safeAnswer = answer && typeof answer === "object" ? answer : {};
+    const direct = safeAnswer.direct_answer
+      || safeAnswer.answer
+      || safeAnswer.response
+      || safeAnswer.text
+      || answerText
+      || "The saved clinical record does not contain enough information to answer that question.";
+
+    const reasoning = safeAnswer.reasoning_summary
+      || safeAnswer.reasoning
+      || safeAnswer.explanation
+      || safeAnswer.why
+      || "";
+
+    const uncertainty = safeAnswer.uncertainty
+      || safeAnswer.unknowns
+      || safeAnswer.missing_information
+      || "";
+
+    const limitations = Array.isArray(safeAnswer.limitations)
+      ? safeAnswer.limitations
+      : Array.isArray(safeAnswer.caveats)
+        ? safeAnswer.caveats
+        : [];
+
+    return {
+      direct: direct,
+      reasoning: reasoning,
+      references: normalizeReferences(safeAnswer),
+      uncertainty: uncertainty,
+      limitations: limitations
+    };
+  }
+
+  function appendAgentMessage(panel, answer, meta, answerText) {
+    const normalized = normalizeAnswer(answer, answerText);
+    const html = `
+      <p>${chatEscapeHtml(normalized.direct)}</p>
+      ${normalized.reasoning ? `<div class="report-chat-detail"><h4>Reasoning</h4><p>${chatEscapeHtml(normalized.reasoning)}</p></div>` : ""}
+      ${renderReferences(normalized.references)}
+      ${normalized.uncertainty ? `<div class="report-chat-detail"><h4>Uncertainty</h4><p>${chatEscapeHtml(normalized.uncertainty)}</p></div>` : ""}
+      ${renderList("Limitations", normalized.limitations)}
+    `;
+    appendMessage(panel, "agent", html, meta);
+  }
+
+  function renderHistory(panel, history) {
+    const messages = messagesElement(panel);
+    if (!messages) return;
+    messages.innerHTML = "";
+    if (!Array.isArray(history) || !history.length) {
+      messages.innerHTML = emptyStateHtml();
+      return;
+    }
+    history.forEach(function (item) {
+      appendDoctorMessage(panel, item.question || "", item.created_at || "");
+      appendAgentMessage(panel, item.answer || {}, item.created_at || "", item.answer_text || "");
+    });
+  }
+
+  async function loadHistory(panel) {
+    if (!panel || loadedPanels.has(panel) || loadingPanels.has(panel)) return;
+    loadingPanels.add(panel);
+    setStatus(panel, "Loading report chat history...", false);
+    try {
+      const submissionId = panel.dataset.submissionId || panel.dataset.codeNo || "";
+      const response = await fetch(`report-chat/history?submission_id=${encodeURIComponent(submissionId)}`, {
+        credentials: "same-origin"
+      });
+      const payload = await readJsonResponse(response);
+      renderHistory(panel, payload.history || []);
+      loadedPanels.add(panel);
+      setStatus(panel, "", false);
+    } catch (error) {
+      setStatus(panel, error.message || "Could not load report chat history.", true);
+    } finally {
+      loadingPanels.delete(panel);
+    }
+  }
+
+  document.addEventListener("click", function (event) {
+    const promptButton = event.target.closest("[data-report-chat-prompt]");
+    if (!promptButton) return;
+    const panel = promptButton.closest("[data-report-chat-panel]");
+    const textarea = panel ? panel.querySelector("textarea[name='question']") : null;
+    if (!textarea) return;
+    textarea.value = promptButton.dataset.reportChatPrompt || "";
+    textarea.focus();
   });
 
-  panel.hidden = !shouldOpen;
-  button.setAttribute("aria-expanded", shouldOpen ? "true" : "false");
-  button.classList.toggle("submission-tab-active", shouldOpen);
-});
+  document.addEventListener("submit", async function (event) {
+    const form = event.target.closest("[data-report-chat-form]");
+    if (!form) return;
+    event.preventDefault();
+
+    const panel = form.closest("[data-report-chat-panel]");
+    const textarea = form.querySelector("textarea[name='question']");
+    const submitButton = form.querySelector("button[type='submit']");
+    const question = textarea ? textarea.value.trim() : "";
+    if (!panel || !textarea || !question) {
+      if (panel) setStatus(panel, "Enter a question about this report.", true);
+      return;
+    }
+
+    appendDoctorMessage(panel, question, "Now");
+    textarea.value = "";
+    textarea.disabled = true;
+    setSubmitButtonState(submitButton, true);
+    setStatus(panel, "Generating answer from this report...", false);
+    setTyping(panel, true);
+
+    try {
+      const response = await fetch("report-chat", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: panel.dataset.submissionId || panel.dataset.codeNo,
+          question: question
+        })
+      });
+      const payload = await readJsonResponse(response);
+      setTyping(panel, false);
+      appendAgentMessage(panel, payload.answer || {}, payload.created_at || "");
+      loadedPanels.add(panel);
+      setStatus(panel, "", false);
+    } catch (error) {
+      setTyping(panel, false);
+      setStatus(panel, error.message || "The report chat agent could not answer.", true);
+    } finally {
+      setTyping(panel, false);
+      textarea.disabled = false;
+      setSubmitButtonState(submitButton, false);
+      textarea.focus();
+    }
+  });
+
+  window.ReportChatPanel = {
+    loadHistory: loadHistory
+  };
+})();
 
 (function () {
   const STORAGE_KEY = "submissions-language";
@@ -71,6 +480,7 @@ document.addEventListener("click", function (event) {
     "/low-libido": "Low Libido Questionnaire",
     "/ehs": "EHS Questionnaire",
     "/submissions": "Submissions",
+    "/report-chat": "Report Chat",
     "/clinical-agent-test": "Clinical Agent Test"
   };
 
@@ -184,14 +594,14 @@ document.addEventListener("click", function (event) {
     const available = availableFormKeys(activePath);
     return navItems.filter(([href]) => {
       if (href === "./") return true;
-      if (href === "submissions") return activePath === "/submissions";
+      if (href === "submissions") return activePath === "/submissions" || activePath === "/report-chat";
       const form = formNav.find(item => item.href === href);
       return form ? available.has(form.key) : true;
     });
   }
 
   function progressStepIndex(activePath) {
-    if (activePath === "/submissions") return formNav.length + 1;
+    if (activePath === "/submissions" || activePath === "/report-chat") return formNav.length + 1;
     const formIndex = formNav.findIndex(item => item.path === activePath);
     return formIndex >= 0 ? formIndex + 1 : 0;
   }
@@ -204,7 +614,7 @@ document.addEventListener("click", function (event) {
   }
 
   function progressPercent(activePath) {
-    if (activePath === "/submissions") return 100;
+    if (activePath === "/submissions" || activePath === "/report-chat") return 100;
     const totalSteps = formNav.length + 1;
     const percent = ((progressStepIndex(activePath) + pageScrollRatio()) / totalSteps) * 100;
     return Math.max(8, Math.min(100, Math.round(percent)));
@@ -218,10 +628,10 @@ document.addEventListener("click", function (event) {
   function buildSidebar(activePath) {
     const links = visibleNavItems(activePath).map(([href, label, pathData]) => {
       const linkPath = href === "./" ? "/" : `/${href}`;
-      const activeClass = activePath === linkPath ? " is-active" : "";
+      const activeClass = activePath === linkPath || (activePath === "/report-chat" && linkPath === "/submissions") ? " is-active" : "";
       return `<a class="nv-nav-link${activeClass}" href="${navHref(href)}">${icon(pathData)}<span>${label}</span></a>`;
     }).join("");
-    const sidebarCredit = activePath === "/submissions" ? "" : `
+    const sidebarCredit = activePath === "/submissions" || activePath === "/report-chat" ? "" : `
         <div class="nv-sidebar-credit">
           <strong>Patient Intake</strong>
           <p>Complete your clinical intake before the visit.</p>
@@ -250,10 +660,6 @@ document.addEventListener("click", function (event) {
           <span class="nv-page-title">${escapeHtml(title)}</span>
         </div>
         <div class="nv-header-actions">
-          <div class="nv-search" aria-hidden="true">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none"><path d="m21 21-4.35-4.35M10.5 18a7.5 7.5 0 1 1 0-15 7.5 7.5 0 0 1 0 15z" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>
-            <span>Search</span>
-          </div>
           <div class="nv-profile">
             <span class="nv-avatar" data-profile-avatar>P</span>
             <span class="nv-profile-details">
@@ -320,6 +726,7 @@ document.addEventListener("click", function (event) {
   }
 
   function mountShell() {
+    if (document.body.classList.contains("report-chat-body")) return;
     if (document.querySelector(".nv-shell")) return;
 
     const activePath = normalizedPath();

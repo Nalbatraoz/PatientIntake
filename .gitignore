@@ -12,6 +12,7 @@ htmlcov/
 
 # Virtual environments
 .venv/
+.venv*/
 venv/
 env/
 ENV/
@@ -58,12 +59,23 @@ Desktop.ini
 
 # Logs and temp files
 *.log
+*.bak
+*.orig
+*.rej
+*.tmp
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+enter_venv.cmd
+enter_venv.ps1
 tmp/
 temp/
 .cache/
+.browser-check/
+.chrome-profile-codex*/
+.crewai-storage/
+.localappdata/
+.playwright-browsers/
 
 # PM2 runtime artifacts
 .pm2/

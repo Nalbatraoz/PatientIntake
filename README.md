@@ -11,6 +11,7 @@ It also includes a local RAG index for clinical books and guidelines using Gemin
 - Client-side validation for required form fields
 - SQLite storage for submitted intake forms
 - Protected submissions page for reviewing saved forms
+- Report-specific CrewAI chat for completed generated reports
 - Drug and package photo uploads
 - Investigation image/PDF uploads
 - Medication text entry for current medications
@@ -178,6 +179,37 @@ You can also pass a saved intake form:
 
 The endpoint supports clinical review only. It does not diagnose, prescribe, or replace clinician judgment.
 
+## Report-Specific Chat
+
+Completed submissions expose an `Ask about this report` panel on `/submissions`.
+The panel sends the selected card's `submission_id`, so the doctor does not need to type the patient code.
+
+The protected report chat API uses the configured `DB_PATH` database, including EC2 deployments such as:
+
+```text
+DB_PATH=/home/ec2-user/PatientIntake/intake.db
+```
+
+It loads exactly one submission row and answers only from `form_data.clinical_pipeline.report_agent`, especially the saved final report and report packet. It does not read other patients, other reports, raw upstream pipeline branches, or fresh RAG context. If patient answers, uploaded files, extracted text, or photos are not represented in the saved report-agent output, the chat agent says the evidence is unavailable.
+
+Routes:
+
+```text
+GET  /report-chat/history?submission_id=20
+POST /report-chat
+```
+
+Example request:
+
+```json
+{
+  "submission_id": "INT-20",
+  "question": "Why was this flag raised?"
+}
+```
+
+The response contains a direct answer, reasoning summary, references, uncertainty, and limitations. Chat exchanges are saved to `report_chat_messages` for audit history scoped by `submission_id`.
+
 ## Submit Workflow
 
 When a patient submits the main questionnaire, the app now follows the clinical workflow:
@@ -230,6 +262,8 @@ POST /rag/index     Password-protected RAG indexing
 POST /rag/search    Password-protected RAG retrieval
 POST /rag/context   Password-protected Clinical Agent context
 POST /clinical-agent Password-protected RAG plus medication-check agent
+GET  /report-chat/history Password-protected report chat history for one completed report
+POST /report-chat   Password-protected report-specific CrewAI chat
 ```
 
 ## Deploying To AWS EC2 (Persistent Server)

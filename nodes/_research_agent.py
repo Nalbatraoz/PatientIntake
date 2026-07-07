@@ -18,7 +18,6 @@ PUBMED_TOOL = os.environ.get("PUBMED_TOOL", "PatientIntake")
 PUBMED_EMAIL = os.environ.get("PUBMED_EMAIL", "")
 
 
-# Purpose: tell Gemini how to synthesize RAG, drug-label, and PubMed evidence.
 RESEARCH_SYSTEM_PROMPT = """
 You are a medical research assistant supporting a licensed clinician.
 
