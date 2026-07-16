@@ -17,7 +17,7 @@
       view: "View",
       dismiss: "Dismiss",
       age: "Age",
-      urology: "Urology / مسالك",
+      urology: "Urology & Andrology / مسالك ذكورة",
       consultation: "Consultation / استشارة",
       examination: "Examination / كشف",
     },
@@ -35,7 +35,7 @@
       view: "عرض",
       dismiss: "إغلاق",
       age: "العمر",
-      urology: "مسالك",
+      urology: "مسالك ذكورة",
       consultation: "استشارة",
       examination: "كشف",
     }

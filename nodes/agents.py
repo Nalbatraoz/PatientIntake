@@ -41,6 +41,12 @@ from nodes._report_chat_agent import (
     normalize_submission_id,
     run_report_chat_agent,
 )
+from nodes._report_patch_agent import (
+    GEMINI_REPORT_PATCH_MODEL,
+    build_report_patch_packet,
+    call_report_patch_agent,
+    run_report_patch_agent,
+)
 from nodes._research_agent import (
     build_research_context,
     build_pubmed_query,
@@ -57,5 +63,6 @@ AGENT_NAMES = {
     "research": "Research Synthesis Agent",
     "report": "Final Structured Report Agent",
     "report_chat": "Report Explanation Chat Agent",
+    "report_patch": "Final Report Patch Agent",
     "arabic_pdf": "Arabic PDF Report Translator",
 }

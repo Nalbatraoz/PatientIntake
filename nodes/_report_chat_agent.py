@@ -25,6 +25,8 @@ SOURCE_DISPLAY_NAMES = {
     "generated_report_packet": "Generated Report Packet",
     "medication_image_ocr": "Medication Image OCR",
     "uploaded_document_review": "Uploaded Document Review",
+    "doctor_report_notes": "Doctor Report Notes",
+    "question_guidelines": "Retrieved Guidelines",
     "saved_clinical_record": "Saved Clinical Record",
 }
 
@@ -36,6 +38,7 @@ REPORT_CHAT_AGENT_NAMES = (
     "report_chat_evidence",
     "report_chat_report",
     "report_chat_documents",
+    "report_chat_guidelines",
 )
 
 
@@ -238,6 +241,16 @@ def _build_saved_evidence_catalog():
             "display_name": SOURCE_DISPLAY_NAMES["uploaded_document_review"],
             "description": "Saved metadata and summaries for uploaded medication and investigation files.",
         },
+        {
+            "source_key": "doctor_report_notes",
+            "display_name": SOURCE_DISPLAY_NAMES["doctor_report_notes"],
+            "description": "Doctor-authored notes saved into this report after generation.",
+        },
+        {
+            "source_key": "question_guidelines",
+            "display_name": SOURCE_DISPLAY_NAMES["question_guidelines"],
+            "description": "Guideline passages retrieved from the local guideline library for the doctor's current question.",
+        },
     ]
 
 
@@ -248,6 +261,9 @@ def _build_saved_evidence(submission):
     uploaded_files = _maybe_json_value(form_data.get("uploadedFiles")) or []
     uploaded_drug_analysis = _maybe_json_value(form_data.get("uploadedDrugAnalysis")) or {}
     uploaded_file_summary = _maybe_json_value(form_data.get("uploadedFileSummary")) or {}
+    doctor_notes = form_data.get("doctor_report_notes") or []
+    if not isinstance(doctor_notes, list):
+        doctor_notes = []
 
     return {
         "workflow_status": {
@@ -269,6 +285,7 @@ def _build_saved_evidence(submission):
                 "uploaded_files": _compact_uploaded_files(uploaded_files),
                 "uploaded_file_summary": uploaded_file_summary,
             },
+            "doctor_report_notes": doctor_notes[-25:],
         },
     }
 
@@ -389,7 +406,41 @@ def load_report_chat_submission(submission_id, *, get_db_connection, safe_json_l
     }
 
 
-def build_report_chat_packet(submission, question):
+def _build_guideline_context(question, retrieve_guideline_context=None):
+    if not callable(retrieve_guideline_context):
+        return {
+            "query": question,
+            "context": "",
+            "sources": [],
+            "retrieval_status": "unavailable",
+            "retrieval_error": "Guideline retrieval is not configured.",
+        }
+    try:
+        context = retrieve_guideline_context(question, top_k=6)
+    except Exception as exc:
+        return {
+            "query": question,
+            "context": "",
+            "sources": [],
+            "retrieval_status": "error",
+            "retrieval_error": compact_text(str(exc), max_chars=700),
+        }
+    if not isinstance(context, dict):
+        return {
+            "query": question,
+            "context": compact_text(context, max_chars=MAX_CONTEXT_STRING_CHARS),
+            "sources": [],
+            "retrieval_status": "ok",
+        }
+    return {
+        "query": context.get("query") or question,
+        "context": compact_text(context.get("context"), max_chars=MAX_CONTEXT_STRING_CHARS),
+        "sources": context.get("sources") or [],
+        "retrieval_status": "ok",
+    }
+
+
+def build_report_chat_packet(submission, question, retrieve_guideline_context=None):
     """Build the chat packet from saved multi-agent evidence for one completed submission."""
     clean_question = _clean_question(question)
     form_data = submission.get("form_data") or {}
@@ -408,16 +459,21 @@ def build_report_chat_packet(submission, question):
 
     saved_evidence = _compact_for_prompt(_build_saved_evidence(submission))
     _trim_saved_evidence(saved_evidence)
+    guideline_context = _compact_for_prompt(
+        _build_guideline_context(clean_question, retrieve_guideline_context)
+    )
     packet = {
         "submission_id": int(submission["id"]),
         "code_no": submission["code_no"],
         "doctor_question": clean_question,
         "strict_context_boundary": (
-            "Use only the saved evidence already stored for this submission. "
-            "Do not retrieve other patients, other submissions, or fresh outside evidence."
+            "Use only this selected submission's saved evidence, doctor report notes, and the "
+            "question-specific guideline passages retrieved into this packet. Do not retrieve other "
+            "patients, other submissions, PubMed, medication labels, websites, or outside evidence."
         ),
         "saved_evidence_catalog": _build_saved_evidence_catalog(),
         "saved_evidence": saved_evidence,
+        "question_guideline_context": guideline_context,
     }
 
     if _json_size(packet) > MAX_CONTEXT_JSON_CHARS:
@@ -425,7 +481,10 @@ def build_report_chat_packet(submission, question):
             "The saved report-chat context for this submission is too large to process safely."
         )
 
-    packet["context_hash"] = _context_hash(saved_evidence)
+    packet["context_hash"] = _context_hash({
+        "saved_evidence": saved_evidence,
+        "question_guideline_context": guideline_context,
+    })
     return packet
 
 
@@ -499,7 +558,11 @@ def run_report_chat_agent(submission_id, question, dependencies, *, model_name=G
         get_db_connection=dependencies["get_db_connection"],
         safe_json_loads=dependencies["safe_json_loads"],
     )
-    packet = build_report_chat_packet(submission, clean_question)
+    packet = build_report_chat_packet(
+        submission,
+        clean_question,
+        retrieve_guideline_context=dependencies.get("retrieve_guideline_context"),
+    )
 
     try:
         answer = call_report_chat_agent(

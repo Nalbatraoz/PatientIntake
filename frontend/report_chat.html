@@ -50,7 +50,7 @@
             <span class="report-code">{{ submission.code_no }}</span>
             <div>
               <h1>{{ submission.full_name or "Selected patient" }}</h1>
-              <p>Ask about the generated clinical report.</p>
+              <p>Ask about or patch the generated clinical report.</p>
             </div>
           </div>
           {% if submission.report_pdf_url %}
@@ -71,11 +71,39 @@
         </div>
 
         <div class="report-chat-bottom nv-niva-panel__composer">
+          <script type="application/json" data-report-missing-information>{{ (submission.missing_information|default([], true))|tojson }}</script>
           <div class="report-chat-prompts" aria-label="Suggested report questions">
             <button type="button" data-report-chat-prompt="Why was this flag raised?">Why was this flag raised?</button>
             <button type="button" data-report-chat-prompt="What evidence supports this conclusion?">What evidence supports this conclusion?</button>
             <button type="button" data-report-chat-prompt="Which patient answers or documents caused this concern?">Which patient answers or documents caused this concern?</button>
+            <button type="button" data-report-chat-prompt="What do the clinical guidelines recommend for this case?">What do the guidelines recommend?</button>
           </div>
+
+          <section class="report-fill-panel" data-report-fill-panel hidden>
+            <div class="report-fill-panel__header">
+              <div>
+                <h2>Fill Missing Information</h2>
+                <p>Add the missing clinical details you want applied directly to this saved report.</p>
+              </div>
+              <button type="button" class="report-fill-close" data-report-fill-cancel aria-label="Close fill missing information">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+              </button>
+            </div>
+            <div class="report-fill-panel__body">
+              <div class="report-fill-panel__list">
+                <h3>Current Missing Information</h3>
+                <ul data-report-missing-list></ul>
+              </div>
+              <div class="report-fill-panel__hint">
+                <p>Enter the answer beside one missing item, then apply that field. Each save updates exactly one gap in the saved report.</p>
+              </div>
+            </div>
+            <div class="report-fill-panel__actions">
+              <button type="button" class="report-fill-secondary" data-report-fill-cancel>Cancel</button>
+            </div>
+          </section>
 
           <form class="report-chat-form" data-report-chat-form>
             <label for="report-chat-question-{{ submission.id }}">Question</label>
@@ -85,7 +113,7 @@
                 name="question"
                 rows="2"
                 maxlength="2000"
-                placeholder="Ask about this report"
+                placeholder="Ask about this report or the clinical guidelines — Enter to send"
                 required
               ></textarea>
               <button
@@ -98,6 +126,19 @@
                   <path d="m22 2-7 20-4-9-9-4 20-7Z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>
                 </svg>
                 <span>Ask</span>
+              </button>
+              <button
+                class="report-note-button"
+                type="button"
+                data-report-fill-toggle
+                data-idle-label="Fill Missing Information"
+                data-loading-label="Opening..."
+                aria-label="Fill missing information for this report"
+              >
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                  <path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+                </svg>
+                <span>Fill Missing Information</span>
               </button>
             </div>
             <p class="report-chat-status" data-report-chat-status role="status"></p>

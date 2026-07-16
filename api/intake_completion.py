@@ -18,6 +18,9 @@ _COMPLAINT_TO_FORM_KEY = {
     "erectile_dysfunction": "ehs_data",
 }
 
+# The patient completes the main intake plus IIEF. PEDT, EHS, and Low Libido are
+# doctor questionnaires filled later from the submissions page, so they no longer
+# gate intake completion or the new-submission notification.
 _REQUIRED_BASE_FORM_KEYS = ("iief_data",)
 
 
@@ -54,13 +57,18 @@ def extract_complaints(form_data):
 
 
 def required_form_keys(form_data):
-    """Return the questionnaire keys needed before the intake is complete."""
-    required = set(_REQUIRED_BASE_FORM_KEYS)
+    """Return the patient questionnaire keys needed before the intake is complete."""
+    return set(_REQUIRED_BASE_FORM_KEYS)
+
+
+def recommended_doctor_form_keys(form_data):
+    """Return the doctor questionnaire keys suggested by the patient's complaints."""
+    recommended = set()
     for complaint in extract_complaints(form_data):
         form_key = _COMPLAINT_TO_FORM_KEY.get(complaint)
         if form_key:
-            required.add(form_key)
-    return required
+            recommended.add(form_key)
+    return recommended
 
 
 def form_completion_state(form_data):

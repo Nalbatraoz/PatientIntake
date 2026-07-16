@@ -26,13 +26,21 @@ tasks:
       A valid JSON object matching the requested final report response format.
   report_chat:
     description: |
-      Answer the doctor's question using only the supplied saved evidence bundle for this one completed submission.
-      Use the saved sequential-agent outputs and saved upload or OCR evidence when relevant.
-      Combine one, two, or several saved evidence sources when needed.
-      Do not use other patients, other reports, fresh retrieval, or outside clinical facts.
-      If the saved evidence bundle does not contain enough evidence, say so clearly.
+      Answer the doctor's question using only the supplied saved evidence bundle, saved doctor notes, and question_guideline_context for this one completed submission.
+      Use the saved sequential-agent outputs, saved upload or OCR evidence, doctor-authored report notes, and retrieved guideline passages when relevant.
+      Combine one, two, or several supplied evidence sources when needed.
+      Do not use other patients, other reports, other retrieval, PubMed, medication lookup, websites, or outside clinical facts.
+      If the supplied packet does not contain enough evidence, say so clearly.
     expected_output: |
       A valid JSON object with direct_answer, reasoning_summary, references, uncertainty, and limitations.
+  report_patch:
+    description: |
+      Patch the supplied existing final report using the doctor's supplied missing information update.
+      Preserve the report structure and unchanged supported content.
+      Update only the sections that the new doctor-supplied information directly affects.
+      Keep unresolved gaps inside missing_information.
+    expected_output: |
+      A valid JSON object matching the saved final report structure.
   arabic_pdf:
     description: |
       Translate this structured report into the requested Arabic JSON shape for the PDF only.

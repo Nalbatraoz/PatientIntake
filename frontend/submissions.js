@@ -100,6 +100,106 @@ document.addEventListener("DOMContentLoaded", function () {
     return panel.querySelector("[data-report-chat-status]");
   }
 
+  function reportDocumentContent(panel) {
+    return panel.closest(".report-chat-shell")?.querySelector(".report-document-scroll .ai-report-content") || null;
+  }
+
+  function reportPdfLink(panel) {
+    return panel.closest(".report-chat-shell")?.querySelector(".report-pdf-link") || null;
+  }
+
+  function fillPanelElement(panel) {
+    return panel.querySelector("[data-report-fill-panel]");
+  }
+
+  function fillToggleButton(panel) {
+    return panel.querySelector("[data-report-fill-toggle]");
+  }
+
+  function fillApplyButton(panel) {
+    return panel.querySelector("[data-report-apply-button]");
+  }
+
+  function missingInfoScript(panel) {
+    return panel.querySelector("[data-report-missing-information]");
+  }
+
+  function readMissingInformation(panel) {
+    const script = missingInfoScript(panel);
+    if (!script) return [];
+    try {
+      const values = JSON.parse(script.textContent || "[]");
+      return Array.isArray(values) ? values : [];
+    } catch {
+      return [];
+    }
+  }
+
+  function writeMissingInformation(panel, values) {
+    const script = missingInfoScript(panel);
+    if (!script) return;
+    script.textContent = JSON.stringify(Array.isArray(values) ? values : []);
+  }
+
+  function renderMissingInformationPanel(panel) {
+    const list = panel.querySelector("[data-report-missing-list]");
+    if (!list) return;
+    const items = readMissingInformation(panel);
+    if (!items.length) {
+      list.innerHTML = "<li>All currently listed missing-information items have been addressed in the saved report.</li>";
+      return;
+    }
+    list.innerHTML = items.map(function (item, index) {
+      return `<li class="report-missing-field" data-missing-item="${chatEscapeHtml(item)}">
+        <label for="missing-field-${index}">${chatEscapeHtml(item)}</label>
+        <textarea id="missing-field-${index}" rows="2" maxlength="2000" placeholder="Enter this missing information"></textarea>
+        <button type="button" class="report-apply-button" data-report-apply-button data-idle-label="Apply this field" data-loading-label="Updating...">Apply this field</button>
+      </li>`;
+    }).join("");
+  }
+
+  function setFillMode(panel, isActive) {
+    if (!panel) return;
+    const fillPanel = fillPanelElement(panel);
+    const prompts = panel.querySelector(".report-chat-prompts");
+    const questionForm = panel.querySelector("[data-report-chat-form]");
+    const toggle = fillToggleButton(panel);
+    panel.dataset.reportFillMode = isActive ? "true" : "false";
+    if (fillPanel) {
+      fillPanel.hidden = !isActive;
+      if (isActive) renderMissingInformationPanel(panel);
+    }
+    if (prompts) prompts.hidden = isActive;
+    if (questionForm) questionForm.hidden = isActive;
+    if (toggle) toggle.classList.toggle("is-active", isActive);
+  }
+
+  function patchSummaryHtml(payload) {
+    const before = Array.isArray(payload.missing_information_before) ? payload.missing_information_before.length : 0;
+    const after = Array.isArray(payload.missing_information_after) ? payload.missing_information_after.length : 0;
+    const resolved = Math.max(0, before - after);
+    return `
+      <p>${resolved ? `${resolved} missing-information item${resolved === 1 ? "" : "s"} addressed and the saved report was patched.` : "The saved report was patched with the doctor's supplied information."}</p>
+      ${renderList("Remaining Missing Information", payload.missing_information_after || [])}
+    `;
+  }
+
+  function syncPatchedReport(panel, payload) {
+    const content = reportDocumentContent(panel);
+    if (content && payload.ai_html) {
+      content.innerHTML = payload.ai_html;
+    }
+    if (Array.isArray(payload.missing_information_after)) {
+      writeMissingInformation(panel, payload.missing_information_after);
+      renderMissingInformationPanel(panel);
+    }
+    const pdfLink = reportPdfLink(panel);
+    if (pdfLink && payload.report_pdf_url) {
+      pdfLink.href = payload.report_pdf_url;
+      pdfLink.hidden = false;
+    }
+  }
+
   function setSubmitButtonState(button, isLoading) {
     if (!button) return;
     const idleLabel = button.dataset.idleLabel || "Ask";
@@ -167,6 +267,56 @@ document.addEventListener("DOMContentLoaded", function () {
     `;
   }
 
+  function isNearLatest(messages) {
+    return messages.scrollHeight - messages.scrollTop - messages.clientHeight < 140;
+  }
+
+  function jumpButtonElement(panel) {
+    return panel.querySelector("[data-report-chat-jump]");
+  }
+
+  function updateJumpButton(panel) {
+    const messages = messagesElement(panel);
+    const jumpButton = jumpButtonElement(panel);
+    if (!messages || !jumpButton) return;
+    jumpButton.hidden = isNearLatest(messages);
+  }
+
+  function scrollToLatest(panel, behavior) {
+    const messages = messagesElement(panel);
+    if (!messages) return;
+    if (behavior === "auto") {
+      const previous = messages.style.scrollBehavior;
+      messages.style.scrollBehavior = "auto";
+      messages.scrollTop = messages.scrollHeight;
+      messages.style.scrollBehavior = previous;
+    } else {
+      messages.scrollTop = messages.scrollHeight;
+    }
+    updateJumpButton(panel);
+  }
+
+  function ensureChatScrollControls(panel) {
+    const messages = messagesElement(panel);
+    const bottom = panel.querySelector(".report-chat-bottom");
+    if (!messages || !bottom || jumpButtonElement(panel)) return;
+
+    bottom.insertAdjacentHTML("afterbegin", `
+      <button type="button" class="report-chat-jump-latest" data-report-chat-jump hidden>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+          <path d="M12 5v14m0 0 6-6m-6 6-6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+        <span>Latest messages</span>
+      </button>
+    `);
+    jumpButtonElement(panel)?.addEventListener("click", function () {
+      scrollToLatest(panel);
+    });
+    messages.addEventListener("scroll", function () {
+      updateJumpButton(panel);
+    }, { passive: true });
+  }
+
   function setTyping(panel, isTyping) {
     const messages = messagesElement(panel);
     if (!messages) return;
@@ -190,6 +340,10 @@ document.addEventListener("DOMContentLoaded", function () {
     if (!messages) return;
     clearEmptyState(panel);
     const isDoctor = role === "doctor";
+    // Keep the view pinned to the newest message only when the doctor just sent
+    // one or was already reading the latest; otherwise offer the jump button so
+    // scrolling back through the conversation is never interrupted.
+    const shouldStick = isDoctor || isNearLatest(messages);
     const roleLabel = isDoctor ? "Doctor" : "Nanovate";
     const roleClass = isDoctor ? "doctor" : "agent";
     const metaHtml = meta ? `<span class="nv-niva-message-item__time">${chatEscapeHtml(meta)}</span>` : "";
@@ -207,7 +361,10 @@ document.addEventListener("DOMContentLoaded", function () {
         ${isDoctor ? `${content}${avatar}` : `${avatar}${content}`}
       </article>
     `);
-    messages.scrollTop = messages.scrollHeight;
+    if (shouldStick) {
+      messages.scrollTop = messages.scrollHeight;
+    }
+    updateJumpButton(panel);
   }
 
   function appendDoctorMessage(panel, question, meta) {
@@ -344,10 +501,12 @@ document.addEventListener("DOMContentLoaded", function () {
       appendDoctorMessage(panel, item.question || "", item.created_at || "");
       appendAgentMessage(panel, item.answer || {}, item.created_at || "", item.answer_text || "");
     });
+    scrollToLatest(panel, "auto");
   }
 
   async function loadHistory(panel) {
     if (!panel || loadedPanels.has(panel) || loadingPanels.has(panel)) return;
+    ensureChatScrollControls(panel);
     loadingPanels.add(panel);
     setStatus(panel, "Loading report chat history...", false);
     try {
@@ -366,6 +525,26 @@ document.addEventListener("DOMContentLoaded", function () {
     }
   }
 
+  // Purpose: Enter sends the question (Shift+Enter keeps a new line).
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Enter" || event.shiftKey || event.isComposing) return;
+    const textarea = event.target.closest("[data-report-chat-form] textarea[name='question']");
+    if (!textarea || textarea.disabled) return;
+    event.preventDefault();
+    const form = textarea.closest("form");
+    if (!form) return;
+    if (typeof form.requestSubmit === "function") form.requestSubmit();
+    else form.dispatchEvent(new Event("submit", { bubbles: true, cancelable: true }));
+  });
+
+  // Purpose: grow the question box with its content instead of forcing inner scroll.
+  document.addEventListener("input", function (event) {
+    const textarea = event.target.closest("[data-report-chat-form] textarea[name='question']");
+    if (!textarea) return;
+    textarea.style.height = "auto";
+    textarea.style.height = `${Math.min(textarea.scrollHeight, 140)}px`;
+  });
+
   document.addEventListener("click", function (event) {
     const promptButton = event.target.closest("[data-report-chat-prompt]");
     if (!promptButton) return;
@@ -376,6 +555,74 @@ document.addEventListener("DOMContentLoaded", function () {
     textarea.focus();
   });
 
+  document.addEventListener("click", function (event) {
+    const toggleButton = event.target.closest("[data-report-fill-toggle]");
+    if (!toggleButton) return;
+    const panel = toggleButton.closest("[data-report-chat-panel]");
+    const textarea = panel ? panel.querySelector("textarea[name='question']") : null;
+    if (!panel) return;
+    setFillMode(panel, panel.dataset.reportFillMode !== "true");
+    if (textarea) textarea.focus();
+  });
+
+  document.addEventListener("click", function (event) {
+    const cancelButton = event.target.closest("[data-report-fill-cancel]");
+    if (!cancelButton) return;
+    const panel = cancelButton.closest("[data-report-chat-panel]");
+    const textarea = panel ? panel.querySelector("textarea[name='question']") : null;
+    if (!panel) return;
+    setFillMode(panel, false);
+    if (textarea) textarea.focus();
+  });
+
+  document.addEventListener("click", async function (event) {
+    const applyButton = event.target.closest("[data-report-apply-button]");
+    if (!applyButton) return;
+
+    const panel = applyButton.closest("[data-report-chat-panel]");
+    const row = applyButton.closest("[data-missing-item]");
+    const textarea = row ? row.querySelector("textarea") : null;
+    const toggleButton = panel ? fillToggleButton(panel) : null;
+    const filledInformation = textarea ? textarea.value.trim() : "";
+    const missingItem = row ? row.dataset.missingItem || "" : "";
+    if (!panel || !textarea || !filledInformation) {
+      if (panel) setStatus(panel, "Enter the missing information you want applied to this report.", true);
+      return;
+    }
+
+    appendDoctorMessage(panel, filledInformation, "Now");
+    textarea.value = "";
+    textarea.disabled = true;
+    setSubmitButtonState(applyButton, true);
+    if (toggleButton) toggleButton.disabled = true;
+    setStatus(panel, "Patching the saved report with the doctor's information...", false);
+
+    try {
+      const response = await fetch("report-chat/report-patch", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          submission_id: panel.dataset.submissionId || panel.dataset.codeNo,
+          missing_item: missingItem,
+          filled_information: filledInformation
+        })
+      });
+      const payload = await readJsonResponse(response);
+      syncPatchedReport(panel, payload);
+      appendMessage(panel, "agent", patchSummaryHtml(payload), payload.patch_entry?.created_at || "");
+      setFillMode(panel, true);
+      setStatus(panel, "One missing field was saved and the report was updated.", false);
+    } catch (error) {
+      setStatus(panel, error.message || "Could not patch the saved report.", true);
+    } finally {
+      textarea.disabled = false;
+      setSubmitButtonState(applyButton, false);
+      if (toggleButton) toggleButton.disabled = false;
+      textarea.focus();
+    }
+  });
+
   document.addEventListener("submit", async function (event) {
     const form = event.target.closest("[data-report-chat-form]");
     if (!form) return;
@@ -384,6 +631,10 @@ document.addEventListener("DOMContentLoaded", function () {
     const panel = form.closest("[data-report-chat-panel]");
     const textarea = form.querySelector("textarea[name='question']");
     const submitButton = form.querySelector("button[type='submit']");
+    if (panel?.dataset.reportFillMode === "true") {
+      if (panel) setStatus(panel, "Use Apply to Report while Fill Missing Information is open.", true);
+      return;
+    }
     const question = textarea ? textarea.value.trim() : "";
     if (!panel || !textarea || !question) {
       if (panel) setStatus(panel, "Enter a question about this report.", true);
@@ -424,8 +675,56 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   window.ReportChatPanel = {
-    loadHistory: loadHistory
+    loadHistory: loadHistory,
+    renderMissingInformationPanel: renderMissingInformationPanel
   };
+})();
+
+/* Search submissions by phone number (also matches name and patient code). */
+(function () {
+  const input = document.getElementById("submissionsSearch");
+  if (!input) return;
+  const clearButton = document.getElementById("submissionsSearchClear");
+  const emptyMessage = document.getElementById("submissionsSearchEmpty");
+
+  const EASTERN_DIGITS = { "٠": "0", "١": "1", "٢": "2", "٣": "3", "٤": "4", "٥": "5", "٦": "6", "٧": "7", "٨": "8", "٩": "9", "۰": "0", "۱": "1", "۲": "2", "۳": "3", "۴": "4", "۵": "5", "۶": "6", "۷": "7", "۸": "8", "۹": "9" };
+
+  function normalizeDigits(value) {
+    return String(value || "").replace(/[٠-٩۰-۹]/g, char => EASTERN_DIGITS[char] || char);
+  }
+
+  function digitsOnly(value) {
+    return normalizeDigits(value).replace(/\D+/g, "");
+  }
+
+  function applyFilter() {
+    const query = normalizeDigits(input.value).trim().toLowerCase();
+    const queryDigits = digitsOnly(query);
+    let visibleCount = 0;
+
+    document.querySelectorAll("article.submission").forEach(function (card) {
+      const mobileDigits = digitsOnly(card.dataset.mobile || "");
+      const name = (card.dataset.name || "").toLowerCase();
+      const code = (card.dataset.code || "").toLowerCase();
+      const matches = !query
+        || (queryDigits && mobileDigits.includes(queryDigits))
+        || name.includes(query)
+        || code.includes(query);
+      card.hidden = !matches;
+      if (matches) visibleCount += 1;
+    });
+
+    if (emptyMessage) emptyMessage.hidden = visibleCount > 0 || !query;
+    if (clearButton) clearButton.hidden = !query;
+  }
+
+  input.addEventListener("input", applyFilter);
+  input.addEventListener("search", applyFilter);
+  clearButton?.addEventListener("click", function () {
+    input.value = "";
+    applyFilter();
+    input.focus();
+  });
 })();
 
 (function () {
@@ -468,6 +767,179 @@ document.addEventListener("DOMContentLoaded", function () {
   });
 
   applyLanguage(getLanguage());
+})();
+
+(function () {
+  const scalarFields = [
+    ["report_title", "Report title"],
+    ["report_type", "Report type"],
+    ["confidence", "Confidence"],
+    ["executive_summary", "Executive summary"],
+    ["clinical_summary", "Clinical summary"]
+  ];
+  const listFields = [
+    ["urgent_safety_alerts", "Urgent safety alerts"],
+    ["medication_safety", "Medication safety"],
+    ["findings", "Findings"],
+    ["clinical_findings", "Clinical findings"],
+    ["evidence_summary", "Evidence summary"],
+    ["clinician_actions", "Clinician actions"],
+    ["missing_information", "Missing information"],
+    ["limitations", "Limitations"],
+    ["citations", "Citations"]
+  ];
+
+  function escapeHtml(value) {
+    return String(value ?? "").replace(/[&<>"']/g, char => ({
+      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
+    }[char]));
+  }
+
+  function readReport(card) {
+    try {
+      return JSON.parse(card.querySelector("[data-editable-report]")?.textContent || "{}");
+    } catch {
+      return {};
+    }
+  }
+
+  function renderEditor(card) {
+    const host = card.querySelector("[data-report-editor-fields]");
+    if (!host) return;
+    const report = readReport(card);
+    const fields = scalarFields.map(([name, label]) => `
+      <label class="report-editor-field"><span>${escapeHtml(label)}</span>
+        <textarea rows="${name.includes("summary") ? 4 : 2}" data-report-field="${name}">${escapeHtml(report[name] || "")}</textarea>
+      </label>`).join("");
+    const lists = listFields.map(([name, label]) => `
+      <label class="report-editor-field"><span>${escapeHtml(label)} <small>(one item per line)</small></span>
+        <textarea rows="4" data-report-list-field="${name}">${escapeHtml((report[name] || []).join("\n"))}</textarea>
+      </label>`).join("");
+    host.innerHTML = fields + lists;
+  }
+
+  function setEditorOpen(card, open) {
+    const editor = card.querySelector("[data-report-editor]");
+    if (!editor) return;
+    if (open) renderEditor(card);
+    editor.hidden = !open;
+    card.classList.toggle("is-report-editing", open);
+    card.querySelector("[data-report-edit-toggle]")?.setAttribute("aria-expanded", String(open));
+  }
+
+  document.addEventListener("click", event => {
+    const toggle = event.target.closest("[data-report-edit-toggle]");
+    if (!toggle) return;
+    const card = toggle.closest(".submission");
+    if (card) setEditorOpen(card, card.querySelector("[data-report-editor]")?.hidden !== false);
+  });
+
+  document.addEventListener("click", event => {
+    const cancel = event.target.closest("[data-report-edit-cancel]");
+    if (!cancel) return;
+    const card = cancel.closest(".submission");
+    if (card) setEditorOpen(card, false);
+  });
+
+  document.addEventListener("click", async event => {
+    const save = event.target.closest("[data-report-edit-save]");
+    if (!save) return;
+    const card = save.closest(".submission");
+    if (!card) return;
+    const status = card.querySelector("[data-report-edit-status]");
+    const report = readReport(card);
+    card.querySelectorAll("[data-report-field]").forEach(input => {
+      report[input.dataset.reportField] = input.value.trim();
+    });
+    card.querySelectorAll("[data-report-list-field]").forEach(input => {
+      report[input.dataset.reportListField] = input.value.split(/\r?\n/).map(item => item.trim()).filter(Boolean);
+    });
+    save.disabled = true;
+    if (status) status.textContent = "Saving report...";
+    try {
+      const response = await fetch("report-chat/report-edit", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ submission_id: card.dataset.submissionId, report })
+      });
+      const payload = await response.json().catch(() => ({}));
+      if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
+      card.querySelector("[data-editable-report]").textContent = JSON.stringify(payload.report || report);
+      const reportContent = card.querySelector("[data-ai-report-content]");
+      if (reportContent && payload.ai_html) reportContent.innerHTML = payload.ai_html;
+      const revision = payload.patch_entry?.created_at || new Date().toISOString();
+      card.dataset.reportRevision = revision;
+      const time = card.querySelector("[data-report-time]");
+      if (time) time.setAttribute("datetime", revision);
+      setEditorOpen(card, false);
+      if (status) status.textContent = "Report saved.";
+      updateReportTimes();
+    } catch (error) {
+      if (status) status.textContent = error.message || "Could not save report.";
+    } finally {
+      save.disabled = false;
+    }
+  });
+
+  function parsedDate(value) {
+    if (!value) return null;
+    const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
+    const date = new Date(normalized);
+    return Number.isNaN(date.getTime()) ? null : date;
+  }
+
+  function relativeCreated(date) {
+    const seconds = Math.max(0, Math.round((Date.now() - date.getTime()) / 1000));
+    if (seconds < 45) return "Created just now";
+    const minutes = Math.round(seconds / 60);
+    if (minutes < 60) return `Created ${minutes} min${minutes === 1 ? "" : "s"} ago`;
+    const hours = Math.round(minutes / 60);
+    if (hours < 24) return `Created ${hours} hour${hours === 1 ? "" : "s"} ago`;
+    const days = Math.round(hours / 24);
+    return `Created ${days} day${days === 1 ? "" : "s"} ago`;
+  }
+
+  function updateReportTimes() {
+    document.querySelectorAll("[data-report-time]").forEach(time => {
+      const date = parsedDate(time.getAttribute("datetime"));
+      if (!date) return;
+      const exact = time.querySelector("[data-exact-time]");
+      const relative = time.querySelector("[data-relative-time]");
+      if (exact) exact.textContent = new Intl.DateTimeFormat(undefined, {
+        year: "numeric", month: "2-digit", day: "2-digit",
+        hour: "2-digit", minute: "2-digit", second: "2-digit", timeZoneName: "short"
+      }).format(date);
+      if (relative) relative.textContent = relativeCreated(date);
+    });
+  }
+
+  function currentPollState() {
+    return Array.from(document.querySelectorAll(".submission[data-submission-id]")).map(card => ({
+      id: Number(card.dataset.submissionId), revision: card.dataset.reportRevision || ""
+    }));
+  }
+
+  async function pollSubmissions() {
+    if (document.body.classList.contains("report-chat-body")) return;
+    try {
+      const response = await fetch("submissions/poll", { credentials: "same-origin", cache: "no-store" });
+      if (!response.ok) return;
+      const payload = await response.json();
+      const remote = Array.isArray(payload.submissions) ? payload.submissions : [];
+      const local = currentPollState();
+      const changed = remote.length !== local.length || remote.some((item, index) => {
+        return !local[index] || item.id !== local[index].id || String(item.revision || "") !== local[index].revision;
+      });
+      if (changed && !document.querySelector(".submission.is-report-editing")) window.location.reload();
+    } catch {
+      // SSE remains the primary notification channel; the next poll retries quietly.
+    }
+  }
+
+  updateReportTimes();
+  window.setInterval(updateReportTimes, 30000);
+  window.setInterval(pollSubmissions, 15000);
 })();
 
 /* Nanovate Figma shell */

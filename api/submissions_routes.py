@@ -5,13 +5,19 @@ import threading
 
 from flask import Blueprint, jsonify, request
 
-from api.intake_completion import form_completion_state, load_form_data, persist_completion_state
+from api.intake_completion import (
+    broadcast_notification,
+    form_completion_state,
+    load_form_data,
+    persist_completion_state,
+)
 from api.utils import (
     deployment_info,
     get_db_connection,
     hash_patient_password,
     run_full_clinical_pipeline,
 )
+from core.submission_metadata import normalize_bmi_fields, utc_now_iso
 
 
 submissions_bp = Blueprint("submissions", __name__)
@@ -65,6 +71,7 @@ def _run_pipeline_bg(data_copy, sub_id):
         }
         print(f"[pipeline] submission #{sub_id} failed: {exc}")
     else:
+        pipeline_result["generated_at"] = utc_now_iso()
         print(
             f"[pipeline] submission #{sub_id} finished: "
             f"status={pipeline_result.get('status')} "
@@ -81,13 +88,23 @@ def _run_pipeline_bg(data_copy, sub_id):
     )
     conn_bg.commit()
     conn_bg.close()
+    if str(pipeline_result.get("status") or "").lower() == "completed":
+        broadcast_notification({
+            "type": "pipeline_completed",
+            "submission_id": sub_id,
+            "codeNo": f"INT-{sub_id}",
+            "status": "completed",
+            "timestamp": pipeline_result["generated_at"],
+        })
 
 
 @submissions_bp.route("/submit", methods=["POST"])
 def submit_form():
     """Save a submitted intake form, then run the configured clinical agent workflow."""
-    data = request.json or {}
+    data = normalize_bmi_fields(request.json or {})
     initial_payload = dict(data)
+    created_at = utc_now_iso()
+    initial_payload["created_at"] = created_at
     patient_password = str(data.get("patientPassword") or "").strip()
 
     if data.get("patientStatus") == "first_time" and not patient_password:
@@ -100,8 +117,8 @@ def submit_form():
     cur.execute(
         """
         INSERT INTO intake_forms
-        (full_name, age, mobile, email, patient_password_hash, form_data)
-        VALUES (?, ?, ?, ?, ?, ?)
+        (full_name, age, mobile, email, patient_password_hash, created_at, form_data)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
         """,
         (
             data.get("fullName"),
@@ -109,6 +126,7 @@ def submit_form():
             data.get("mobile"),
             data.get("email"),
             patient_password_hash,
+            created_at,
             json.dumps(initial_payload, ensure_ascii=False),
         ),
     )

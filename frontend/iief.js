@@ -527,12 +527,9 @@
             document.getElementById("step-1").style.display = "none";
             document.getElementById("step-2").style.display = "none";
             document.getElementById("step-3").style.display = "none";
-            const nextPage = resolveNextPage();
-            if (nextPage !== "/") {
-                window.location.replace(`${nextPage}${buildForwardQuery()}`);
-                return;
-            }
 
+            // The patient part of the intake ends here. PEDT, EHS, and Low Libido
+            // are doctor questionnaires filled from the submissions page.
             showCompletionCard(
                 "This is your code. Please remember it for future visits.",
                 "/",

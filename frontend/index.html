@@ -26,11 +26,11 @@
         <label>
           <input type="radio" name="visitType" value="urology">
           <span class="visit-type-card">
-            <strong>مسالك</strong>
-            <small>Urology</small>
+            <strong>مسالك ذكورة</strong>
+            <small>Urology &amp; Andrology</small>
           </span>
         </label>
-        <label>
+        <label data-consultation-option hidden>
           <input type="radio" name="visitType" value="consultation">
           <span class="visit-type-card">
             <strong>استشارة</strong>
@@ -411,7 +411,7 @@
       <input name="height">
 
       <label>BMI / مؤشر كتلة الجسم</label>
-      <input name="bmi">
+      <input name="bmi" readonly>
 
       <label>Waist Circumference / محيط الخصر</label>
       <input name="waist">
@@ -549,6 +549,13 @@
         <label><input type="checkbox" name="complaints" value="sti"> STI / Sexual Infection / الأمراض المنقولة
           جنسياً</label>
         <label><input type="checkbox" name="complaints" value="follow_up"> Follow-up Visit / زيارة متابعة دورية</label>
+        <label><input type="checkbox" name="complaints" value="other"> Other / أخرى</label>
+      </div>
+
+      <div id="complaintsOtherWrapper" class="other-input-wrapper" hidden>
+        <label for="complaintsOtherInput">Describe your other complaint / اذكر شكواك الأخرى</label>
+        <textarea id="complaintsOtherInput" name="complaintsOther" data-optional="true"
+          placeholder="Write anything you want to add / اكتب أي شيء تريد إضافته"></textarea>
       </div>
     </section>
 
@@ -619,6 +626,13 @@
         <label><input type="checkbox" name="referral" value="instagram"> Instagram / انستجرام</label>
         <label><input type="checkbox" name="referral" value="tiktok"> TikTok / تيك توك</label>
         <label><input type="checkbox" name="referral" value="referral"> Referral / توصية</label>
+        <label><input type="checkbox" name="referral" value="other"> Other / أخرى</label>
+      </div>
+
+      <div id="referralOtherWrapper" class="other-input-wrapper" hidden>
+        <label for="referralOtherInput">Tell us how you found us / أخبرنا كيف وصلت إلينا</label>
+        <input id="referralOtherInput" name="referralOther" data-optional="true"
+          placeholder="Account, website, person, or anything else / حساب أو موقع أو شخص أو أي شيء آخر">
       </div>
     </section>
 

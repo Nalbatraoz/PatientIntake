@@ -22,6 +22,7 @@ from core.agent_utils import compact_text as first_text
 from core.agent_utils import load_secret as read_secret
 from core.agent_utils import gemini_model_resource, gemini_text, parse_json_object, request_json
 from core.crew_orchestrator import run_crewai_workflow as orchestrate_full_clinical_pipeline
+from core.submission_metadata import build_doctor_report_note, ensure_created_at_column, utc_now_iso
 from nodes.RAG_agent import retrieve_clinical_context
 import nodes.agents as clinical_agent_module
 from nodes.agents import (
@@ -403,6 +404,7 @@ GEMINI_RESEARCH_MODEL = os.environ.get("GEMINI_RESEARCH_MODEL", "gemini-2.5-flas
 GEMINI_EVIDENCE_REVIEWER_MODEL = os.environ.get("GEMINI_EVIDENCE_REVIEWER_MODEL", "gemini-2.5-flash")
 GEMINI_REPORT_MODEL = os.environ.get("GEMINI_REPORT_MODEL", "gemini-2.5-flash")
 GEMINI_REPORT_CHAT_MODEL = os.environ.get("GEMINI_REPORT_CHAT_MODEL", GEMINI_REPORT_MODEL)
+GEMINI_REPORT_PATCH_MODEL = os.environ.get("GEMINI_REPORT_PATCH_MODEL", GEMINI_REPORT_MODEL)
 GEMINI_OCR_MODEL = os.environ.get("GEMINI_OCR_MODEL", "gemini-3.5-flash")
 TESSERACT_CMD = resolve_tesseract_cmd()
 TESSERACT_LANG = os.environ.get("TESSERACT_LANG", "eng").strip() or "eng"
@@ -461,6 +463,7 @@ def ensure_intake_form_schema(conn):
     if "patient_password_hash" not in existing_columns:
         cur.execute("ALTER TABLE intake_forms ADD COLUMN patient_password_hash TEXT")
         conn.commit()
+    ensure_created_at_column(conn)
 
 def ensure_report_chat_schema(conn):
     """Create the report-specific chat audit table when needed."""
@@ -563,6 +566,139 @@ def list_report_chat_history(submission_id, limit=50):
             "created_at": row["created_at"] or "",
         })
     return history
+
+def save_doctor_report_note(submission_id, note, *, author="doctor"):
+    """Persist a doctor-authored note into the selected submission's report context."""
+    submission_id = int(submission_id)
+    note_entry = build_doctor_report_note(note, author=author)
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            "SELECT form_data FROM intake_forms WHERE id = ?",
+            (submission_id,),
+        ).fetchone()
+        if not row:
+            raise LookupError(f"Submission INT-{submission_id} was not found.")
+
+        form_data = safe_json_loads(row["form_data"], {})
+        notes = form_data.get("doctor_report_notes")
+        if not isinstance(notes, list):
+            notes = []
+        notes.append(note_entry)
+        form_data["doctor_report_notes"] = notes
+        conn.execute(
+            "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+            (json.dumps(form_data, ensure_ascii=False), submission_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "submission_id": submission_id,
+        "code_no": f"INT-{submission_id}",
+        "note": note_entry,
+    }
+
+def save_report_patch_result(
+    submission_id,
+    patched_report,
+    *,
+    filled_information,
+    model="",
+    engine="crewai",
+    error="",
+):
+    """Persist a patched final report without rerunning the upstream clinical workflow."""
+    submission_id = int(submission_id)
+    code_no = f"INT-{submission_id}"
+    conn = get_db_connection()
+    try:
+        row = conn.execute(
+            """
+            SELECT id, full_name, age, mobile, email, form_data
+            FROM intake_forms
+            WHERE id = ?
+            """,
+            (submission_id,),
+        ).fetchone()
+        if not row:
+            raise LookupError(f"Submission {code_no} was not found.")
+
+        form_data = safe_json_loads(row["form_data"], {})
+        pipeline = form_data.get("clinical_pipeline") or {}
+        report_agent = pipeline.get("report_agent") or {}
+        report_pdf = pipeline.get("report_pdf") or {}
+        patient_snapshot_defaults = {
+            "submission_id": submission_id,
+            "full_name": row["full_name"] or "",
+            "age": row["age"] or "",
+            "mobile": row["mobile"] or "",
+            "email": row["email"] or "",
+        }
+        normalized_report = normalize_final_report(
+            patched_report,
+            patient_snapshot_defaults=patient_snapshot_defaults,
+        )
+
+        pdf_error = ""
+        try:
+            report_pdf = save_report_pdf(
+                normalized_report,
+                upload_dir=UPLOAD_DIR,
+                submission_id=submission_id,
+                patient_name=row["full_name"] or "",
+                code_no=code_no,
+                arabic=False,
+            )
+        except Exception as exc:
+            pdf_error = str(exc)
+            report_pdf = dict(report_pdf)
+            report_pdf["error"] = pdf_error
+
+        created_at = utc_now_iso()
+        patch_history = form_data.get("report_patch_history")
+        if not isinstance(patch_history, list):
+            patch_history = []
+        patch_history.append({
+            "id": created_at,
+            "created_at": created_at,
+            "filled_information": str(filled_information or ""),
+            "model": str(model or ""),
+            "engine": str(engine or ""),
+            "error": str(error or ""),
+            "pdf_error": pdf_error,
+            "missing_information_remaining": normalized_report.get("missing_information", []),
+        })
+
+        report_agent["report"] = normalized_report
+        report_agent["patched_at"] = created_at
+        report_agent["patched_model"] = str(model or "")
+        report_agent["patched_engine"] = str(engine or "")
+        if error:
+            report_agent["patch_error"] = str(error)
+        pipeline["report_agent"] = report_agent
+        pipeline["final_report"] = normalized_report
+        pipeline["report_pdf"] = report_pdf
+        form_data["clinical_pipeline"] = pipeline
+        form_data["report_patch_history"] = patch_history
+
+        conn.execute(
+            "UPDATE intake_forms SET form_data = ? WHERE id = ?",
+            (json.dumps(form_data, ensure_ascii=False), submission_id),
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "submission_id": submission_id,
+        "code_no": code_no,
+        "report": normalized_report,
+        "pipeline": pipeline,
+        "report_pdf": report_pdf,
+        "patch_entry": patch_history[-1],
+    }
 
 def generate_next_patient_code():
     """Generate the next available patient code (e.g., INT-1, INT-2, etc.)."""
@@ -1048,6 +1184,8 @@ def report_chat_dependencies():
         "safe_json_loads": safe_json_loads,
         "gemini_api_key": GEMINI_API_KEY,
         "gemini_report_chat_model": GEMINI_REPORT_CHAT_MODEL,
+        "gemini_report_patch_model": GEMINI_REPORT_PATCH_MODEL,
+        "retrieve_guideline_context": build_crewai_clinical_context,
     }
 
 def build_crewai_clinical_context(query, top_k=6):

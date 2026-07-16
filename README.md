@@ -9,9 +9,11 @@ It also includes a local RAG index for clinical books and guidelines using Gemin
 
 - Bilingual English / Arabic intake questionnaire
 - Client-side validation for required form fields
+- Visit types: `مسالك ذكورة / Urology & Andrology`, `كشف / Examination`, and doctor-launched `استشارة / Consultation` for returning patients
+- Patient fills the main intake plus IIEF; PEDT, EHS, and Low Libido are doctor questionnaires launched from the protected submissions page
 - SQLite storage for submitted intake forms
-- Protected submissions page for reviewing saved forms
-- Report-specific CrewAI chat for completed generated reports
+- Protected submissions page for reviewing saved forms, with phone number search and per-patient doctor actions
+- Report-specific CrewAI chat for completed generated reports, with question-specific guideline (RAG) retrieval
 - Drug and package photo uploads
 - Investigation image/PDF uploads
 - Medication text entry for current medications
@@ -210,6 +212,16 @@ Example request:
 
 The response contains a direct answer, reasoning summary, references, uncertainty, and limitations. Chat exchanges are saved to `report_chat_messages` for audit history scoped by `submission_id`.
 
+## Patient And Doctor Forms
+
+The intake is split between the patient and the doctor:
+
+1. The patient completes the main questionnaire and is then redirected to the IIEF questionnaire. The intake is marked complete (and the doctor is notified) once IIEF is submitted.
+2. PEDT, EHS, and Low Libido are doctor questionnaires. They are password-protected and launched per patient from the `Doctor actions` row on each submission card (`?mode=doctor`). Forms suggested by the patient's complaints are marked `needed`; already-filled forms show a check mark.
+3. Consultation visits (`استشارة`) are for returning patients only. The consultation visit type is hidden on the public intake page and is launched from the submissions page, which opens the intake pre-set to the existing patient's code.
+
+The submissions page also supports searching by phone number (Arabic-Indic digits accepted), patient name, or code.
+
 ## Submit Workflow
 
 When a patient submits the main questionnaire, the app now follows the clinical workflow:
@@ -254,6 +266,10 @@ GET  /              Main intake form
 GET  /style.css     Stylesheet
 GET  /script.js     Browser logic
 POST /submit        Save completed intake form
+GET  /iief          Patient IIEF questionnaire
+GET  /pedt          Password-protected doctor PEDT questionnaire
+GET  /ehs           Password-protected doctor Erection Hardness Scale
+GET  /low-libido    Password-protected doctor Low Libido questionnaire
 POST /scan-drugs    Upload files and run medication lookup
 GET  /submissions   Password-protected submitted forms
 GET  /uploads/...   Password-protected uploaded files

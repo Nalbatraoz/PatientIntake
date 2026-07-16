@@ -40,6 +40,18 @@ th{width:260px;background:#eef4fb;color:#1f4e79}
 .ai-report-title::after{content:"+";width:22px;height:22px;border:1px solid rgba(255,255,255,.55);border-radius:4px;text-align:center;line-height:20px;font-size:18px}
 .ai-report[open] .ai-report-title::after{content:"-"}
 .ai-report-content{background:#fff}
+.report-edit-toolbar{display:flex;align-items:center;gap:12px;padding:10px 14px;border-bottom:1px solid #2e2e2e;background:#171717;color:#b5b5b5}
+.report-edit-toolbar button,.report-editor-actions button{min-height:36px;padding:8px 14px;border:1px solid #38b98d;border-radius:7px;background:#38b98d;color:#07130f;font:inherit;font-weight:700;cursor:pointer}
+.report-editor{padding:16px;border-bottom:1px solid #333;background:#111;color:#f5f5f5}
+.report-editor>p{margin:0 0 14px;color:#b5b5b5;font-size:13px}
+.report-editor [data-report-editor-fields]{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:14px}
+.report-editor-field{display:grid;gap:6px;color:#f5f5f5;font-size:13px;font-weight:700}
+.report-editor-field small{color:#9b9b9b;font-weight:400}
+.report-editor-field textarea{width:100%;resize:vertical;border:1px solid #3a3a3a;border-radius:7px;padding:10px;background:#191919;color:#f5f5f5;font:inherit;line-height:1.5}
+.report-editor-actions{display:flex;gap:10px;margin-top:14px}
+.report-editor-actions [data-report-edit-cancel]{border-color:#444;background:#262626;color:#f5f5f5}
+[data-report-time]{display:inline-flex;flex-direction:column;gap:2px}
+[data-relative-time]{color:#777;font-size:11px;font-weight:600}
 .ai-section{padding:16px;border-bottom:1px solid #d4dce7}
 .ai-section:last-child{border-bottom:0}
 .ai-section-title{margin-bottom:10px;color:#1f4e79;font-weight:700;font-size:15px}
@@ -1265,3 +1277,31 @@ body.is-arabic th {
     width: 100%;
   }
 }
+
+/* Submissions search (filter by phone number, name, or patient code) */
+.submissions-search{position:relative;display:flex;align-items:center;gap:10px;margin:0 0 14px;padding:0 14px;border:1px solid var(--nv-border,#c9d7e6);border-radius:var(--nv-radius-full,999px);background:var(--nv-bg-card,#fff)}
+.submissions-search:focus-within{border-color:var(--nv-accent,#1f4e79)}
+.submissions-search-icon{flex:none;color:var(--nv-muted,#6b7280)}
+.submissions-search input{flex:1;min-width:0;min-height:46px;padding:8px 0;border:0;outline:none;background:transparent;color:var(--nv-text,#172033);font:inherit;font-size:14px}
+.submissions-search input::placeholder{color:var(--nv-muted-2,#9aa7b5)}
+.submissions-search input::-webkit-search-cancel-button{display:none}
+#submissionsSearchClear{flex:none;width:28px;height:28px;border:1px solid var(--nv-border,#c9d7e6);border-radius:50%;background:var(--nv-bg-elevated,#eef4fb);color:var(--nv-text,#1f4e79);font-size:16px;line-height:1;cursor:pointer}
+#submissionsSearchClear:hover{border-color:var(--nv-accent,#1f4e79)}
+#submissionsSearchEmpty{margin-bottom:18px}
+article.submission[hidden]{display:none !important}
+body.is-arabic .submissions-search{flex-direction:row-reverse}
+body.is-arabic .submissions-search input{text-align:right}
+
+/* Visit type badge on each submission card */
+.visit-type-badge{display:inline-flex;align-items:center;margin-inline-start:10px;padding:4px 12px;border:1px solid var(--nv-border-strong,#c9d7e6);border-radius:999px;font-size:12px;font-weight:700;color:var(--nv-text-soft,#1f4e79);background:var(--nv-bg-elevated,#eef4fb);vertical-align:middle}
+.visit-type-badge.visit-type-consultation{border-color:var(--nv-accent,#0f7a55) !important;color:var(--nv-accent-2,#0f7a55) !important}
+
+/* Doctor actions row: consultation launch + doctor-filled questionnaires */
+.submission-doctor-actions{display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin:0 0 14px;padding:10px 12px;border:1px dashed var(--nv-border-strong,#c9d7e6);border-radius:var(--nv-radius-md,8px);background:var(--nv-bg-elevated,#f7fafd)}
+.doctor-actions-title{font-size:12px;font-weight:700;color:var(--nv-muted,#526277);text-transform:uppercase;letter-spacing:.4px}
+.submission-tab.consultation-launch{border-color:var(--nv-accent,#0f7a55) !important;background:transparent !important;color:var(--nv-accent-2,#0f7a55) !important;text-decoration:none !important}
+.submission-tab.consultation-launch:hover{background:var(--nv-accent,#0f7a55) !important;color:#0d0d0d !important}
+.submission-tab.doctor-form-link{text-decoration:none !important}
+.submission-tab.doctor-form-recommended{border-color:var(--nv-warning,#eab308) !important}
+.submission-tab.doctor-form-filled{opacity:.72}
+.doctor-form-flag{margin-inline-start:6px;padding:2px 8px;border-radius:999px;background:var(--nv-warning,#eab308);color:#111;font-size:10px;font-weight:800;text-transform:uppercase}

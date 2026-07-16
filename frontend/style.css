@@ -1747,3 +1747,7 @@ body.is-arabic th {
     width: 100% !important;
   }
 }
+
+/* Free-text "Other" companions for the complaints and referral checklists */
+.other-input-wrapper { margin-top: 12px; }
+.other-input-wrapper label { font-weight: 600; }

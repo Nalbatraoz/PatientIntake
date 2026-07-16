@@ -91,6 +91,45 @@ function getAllFields(name) {
   return Array.from(document.querySelectorAll(`[name="${name}"]`));
 }
 
+function firstNumber(value) {
+  const match = String(value || "").match(/-?\d+(?:\.\d+)?/);
+  if (!match) return null;
+  const number = Number(match[0]);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function weightToKg(value) {
+  const number = firstNumber(value);
+  if (!number) return null;
+  return /\b(lb|lbs|pound|pounds)\b/i.test(String(value || "")) ? number * 0.45359237 : number;
+}
+
+function heightToMeters(value) {
+  const number = firstNumber(value);
+  if (!number) return null;
+  const text = String(value || "");
+  if (/\b(in|inch|inches)\b/i.test(text)) return number * 0.0254;
+  if (/\b(cm|centimeter|centimeters)\b/i.test(text)) return number / 100;
+  if (/\b(m|meter|meters)\b/i.test(text) && number <= 3) return number;
+  return number > 3 ? number / 100 : number;
+}
+
+function calculateBmiValue(weight, height) {
+  const kg = weightToKg(weight);
+  const meters = heightToMeters(height);
+  if (!kg || !meters) return "";
+  const bmi = kg / (meters * meters);
+  return bmi > 0 && bmi <= 100 ? bmi.toFixed(1) : "";
+}
+
+function updateBmi() {
+  const weight = getField("weight");
+  const height = getField("height");
+  const bmi = getField("bmi");
+  if (!weight || !height || !bmi) return;
+  bmi.value = calculateBmiValue(weight.value, height.value);
+}
+
 function updateQuestionVisibility() {
   const form = document.getElementById("intakeForm");
   if (!form) return;
@@ -363,6 +402,8 @@ function fillFormFromSavedData(data) {
 
     first.value = Array.isArray(value) ? value.join(", ") : String(value ?? "");
   });
+  updateBmi();
+  syncOtherOptionInputs();
 }
 
 async function generatePatientCode() {
@@ -457,6 +498,65 @@ existingPatientPasswordInput?.addEventListener("keydown", event => {
 });
 updatePatientStatusPanels();
 setPatientReady(false);
+
+// Purpose: consultation visits are opened from the doctor's submissions page for
+// returning patients only (./?visitType=consultation&code=INT-x). The consultation
+// visit-type card stays hidden for regular first-visit patients.
+(function initConsultationVisit() {
+  const params = new URLSearchParams(window.location.search);
+  if (params.get("visitType") !== "consultation") return;
+
+  const consultationOption = document.querySelector("[data-consultation-option]");
+  const consultationRadio = consultationOption?.querySelector('input[name="visitType"][value="consultation"]');
+  if (consultationOption) consultationOption.hidden = false;
+  if (consultationRadio) consultationRadio.checked = true;
+
+  const existingRadio = document.querySelector('input[name="patientStatus"][value="existing"]');
+  if (existingRadio) existingRadio.checked = true;
+  updatePatientStatusPanels();
+
+  const code = (params.get("code") || params.get("codeNo") || "").trim();
+  if (code && existingPatientCodeInput) existingPatientCodeInput.value = code;
+  if (patientCodeStatus) {
+    patientCodeStatus.textContent = code
+      ? `Consultation visit for ${code}. Enter the patient password to open the record. / زيارة استشارة للمريض ${code}. أدخل كلمة المرور لفتح الملف.`
+      : "Consultation visit: enter the returning patient's code and password. / زيارة استشارة: أدخل كود المريض السابق وكلمة المرور.";
+  }
+  updateQuestionVisibility();
+  existingPatientPasswordInput?.focus({ preventScroll: false });
+})();
+
+["weight", "height"].forEach(name => {
+  getField(name)?.addEventListener("input", updateBmi);
+  getField(name)?.addEventListener("change", updateBmi);
+});
+updateBmi();
+
+// Purpose: free-text "Other / أخرى" companions for the complaints and referral lists.
+const OTHER_OPTION_BINDINGS = [
+  { checkboxName: "complaints", wrapperId: "complaintsOtherWrapper" },
+  { checkboxName: "referral", wrapperId: "referralOtherWrapper" },
+];
+
+function syncOtherOptionInputs() {
+  OTHER_OPTION_BINDINGS.forEach(({ checkboxName, wrapperId }) => {
+    const box = getAllFields(checkboxName).find(el => el.value === "other");
+    const wrapper = document.getElementById(wrapperId);
+    if (!box || !wrapper) return;
+    wrapper.hidden = !box.checked;
+    if (!box.checked) {
+      const input = wrapper.querySelector("input, textarea");
+      if (input) input.value = "";
+    }
+  });
+}
+
+OTHER_OPTION_BINDINGS.forEach(({ checkboxName }) => {
+  getAllFields(checkboxName)
+    .find(el => el.value === "other")
+    ?.addEventListener("change", syncOtherOptionInputs);
+});
+syncOtherOptionInputs();
 
 function setSubmitState(active, message = "") {
   isSubmitting = active;
@@ -796,6 +896,7 @@ formElement.addEventListener("submit", async function (e) {
     const uploadsReady = await ensureUploadFilesAreScanned();
     if (!uploadsReady) return;
 
+    updateBmi();
     const data = buildFormData(this);
     const response = await fetch("submit", {
       method:  "POST",

@@ -5,8 +5,8 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Submitted Forms</title>
   <link rel="stylesheet" href="submissions.css">
-  <link rel="stylesheet" href="notifications.css">
   <link rel="stylesheet" href="nanovate-theme.css">
+  <link rel="stylesheet" href="notifications.css">
 </head>
 <body>
   <main>
@@ -26,21 +26,65 @@
       </div>
     </div>
 
+    <div class="submissions-search" role="search">
+      <svg class="submissions-search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+        <circle cx="11" cy="11" r="7" stroke="currentColor" stroke-width="2"/>
+        <path d="m20 20-3.5-3.5" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+      </svg>
+      <input
+        id="submissionsSearch"
+        type="search"
+        inputmode="search"
+        autocomplete="off"
+        placeholder="Search by phone number, name, or code / ابحث برقم الهاتف أو الاسم أو الكود"
+        aria-label="Search submissions by phone number, name, or code"
+      >
+      <button id="submissionsSearchClear" type="button" hidden aria-label="Clear search">&times;</button>
+    </div>
+    <p id="submissionsSearchEmpty" class="empty" hidden data-i18n-en="No submissions match this search." data-i18n-ar="لا توجد استمارات مطابقة لهذا البحث.">No submissions match this search.</p>
+
     {% if not submissions %}
       <p class="empty" data-i18n-en="No forms submitted yet." data-i18n-ar="لا توجد استمارات مرسلة حتى الآن.">No forms submitted yet.</p>
     {% else %}
       {% for submission in submissions %}
-        <article class="submission" id="submission-{{ submission.id }}">
+        <article class="submission" id="submission-{{ submission.id }}" data-submission-id="{{ submission.id }}" data-report-revision="{{ submission.report_generated_at }}" data-mobile="{{ submission.mobile }}" data-name="{{ submission.full_name }}" data-code="{{ submission.code_no }}">
           <h2>
             <span data-i18n-en="Submission" data-i18n-ar="الاستمارة">Submission</span>
             #{{ submission.id }}
+            {% if submission.visit_type %}
+              <span class="visit-type-badge visit-type-{{ submission.visit_type }}">{{ submission.visit_type_label }}</span>
+            {% endif %}
           </h2>
           <div class="summary">
+            <span>
+              <strong data-i18n-en="Report time:" data-i18n-ar="Report time:">Report time:</strong>
+              <time datetime="{{ submission.report_generated_at }}" data-report-time>
+                <span data-exact-time>{{ submission.report_generated_at_display }}</span>
+                <small data-relative-time></small>
+              </time>
+            </span>
             <span><strong data-i18n-en="Code:" data-i18n-ar="الكود:">Code:</strong> {{ submission.code_no }}</span>
             <span><strong data-i18n-en="Name:" data-i18n-ar="الاسم:">Name:</strong> {{ submission.full_name }}</span>
             <span><strong data-i18n-en="Age:" data-i18n-ar="العمر:">Age:</strong> {{ submission.age }}</span>
             <span><strong data-i18n-en="Mobile:" data-i18n-ar="الهاتف:">Mobile:</strong> {{ submission.mobile }}</span>
             <span><strong data-i18n-en="Email:" data-i18n-ar="البريد الإلكتروني:">Email:</strong> {{ submission.email }}</span>
+          </div>
+
+          <div class="submission-doctor-actions">
+            <span class="doctor-actions-title" data-i18n-en="Doctor actions:" data-i18n-ar="إجراءات الطبيب:">Doctor actions:</span>
+            <a class="submission-tab consultation-launch" href="./?visitType=consultation&amp;code={{ submission.code_no }}" title="Start a consultation visit for this returning patient / بدء زيارة استشارة لهذا المريض">
+              استشارة Consultation
+            </a>
+            {% for form in submission.doctor_forms %}
+              <a
+                class="submission-tab doctor-form-link{% if form.recommended %} doctor-form-recommended{% endif %}{% if form.filled %} doctor-form-filled{% endif %}"
+                href="{{ form.href }}"
+                title="{% if form.filled %}Refill this doctor questionnaire / إعادة تعبئة استبيان الطبيب{% else %}Fill this doctor questionnaire / تعبئة استبيان الطبيب{% endif %}"
+              >
+                {% if form.filled %}✓{% endif %} {{ form.label }}
+                {% if form.recommended and not form.filled %}<span class="doctor-form-flag" data-i18n-en="needed" data-i18n-ar="مطلوب">needed</span>{% endif %}
+              </a>
+            {% endfor %}
           </div>
 
           <div class="submission-tabs">
@@ -199,7 +243,22 @@
           {% endif %}
 
           <div id="{{ submission.ai_panel_id }}" class="submission-panel ai-report" hidden>
-            <div class="ai-report-content">
+            {% if submission.final_report %}
+              <div class="report-edit-toolbar">
+                <button type="button" data-report-edit-toggle>Edit generated report</button>
+                <span data-report-edit-status role="status"></span>
+              </div>
+              <script type="application/json" data-editable-report>{{ submission.final_report|tojson }}</script>
+              <section class="report-editor" data-report-editor hidden>
+                <p>Edit one item per line in list fields. Saving updates the stored report and regenerates its PDF.</p>
+                <div data-report-editor-fields></div>
+                <div class="report-editor-actions">
+                  <button type="button" data-report-edit-save>Save report</button>
+                  <button type="button" data-report-edit-cancel>Cancel</button>
+                </div>
+              </section>
+            {% endif %}
+            <div class="ai-report-content" data-ai-report-content>
               {{ submission.ai_html|safe }}
             </div>
           </div>

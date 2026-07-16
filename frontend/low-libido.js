@@ -28,7 +28,11 @@
         return './';
     }
 
-    if (!complaints.includes('low_libido')) {
+    // Doctor mode: opened from the submissions page so the doctor can fill this
+    // questionnaire for any patient regardless of the recorded complaints.
+    const doctorMode = urlParams.get('mode') === 'doctor';
+
+    if (!doctorMode && !complaints.includes('low_libido')) {
         const nextPage = resolveNextPage(complaints);
         if (nextPage !== window.location.pathname) {
             window.location.replace(`${nextPage}${nextPage === './' ? '' : buildForwardQuery(complaints)}`);
@@ -419,6 +423,11 @@
             document.getElementById("step-1").style.display = "none";
             document.getElementById("step-2").style.display = "none";
 
+            if (doctorMode) {
+                window.location.replace(`submissions#submission-${submissionId || ""}`);
+                return;
+            }
+
             const remainingComplaints = complaints.filter(item => item !== 'low_libido');
             const nextPage = resolveNextPage(remainingComplaints);
             if (remainingComplaints.length > 0) {
@@ -564,7 +573,7 @@
     const available = availableFormKeys(activePath);
     return navItems.filter(([href]) => {
       if (href === "./") return true;
-      if (href === "submissions") return activePath === "/submissions";
+      if (href === "submissions") return activePath === "/submissions" || new URLSearchParams(window.location.search).get("mode") === "doctor";
       const form = formNav.find(item => item.href === href);
       return form ? available.has(form.key) : true;
     });
