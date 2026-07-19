@@ -56,6 +56,7 @@ Rules:
 - Preserve urgent safety alerts prominently.
 - Keep each fact in only one section. Do not repeat the same statement across findings, clinical findings, evidence summary, clinician actions, and limitations.
 - Use findings for the main clinical facts, clinical findings only for distinct items not already captured in findings, and missing_information only for data still needed.
+- missing_information may contain only patient-specific clinical details a doctor can supply. Never put RAG context, citation text, citation mapping, source filenames, page numbers, or evidence-review instructions in missing_information.
 - Keep executive_summary and clinical_summary distinct and concise.
 - Include citation quality concerns when the evidence reviewer flagged them.
 - Keep the output structured and concise enough for a PDF report.

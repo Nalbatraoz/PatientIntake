@@ -221,6 +221,7 @@ agents:
       - Do not invent facts, citations, PMIDs, medication facts, guideline statements, or lab values.
       - Base the report only on the supplied pipeline output.
       - Preserve urgent safety alerts prominently.
+      - missing_information may contain only patient-specific clinical details a doctor can supply. Never put RAG context, citation text, citation mapping, source filenames, page numbers, or evidence-review instructions in missing_information.
       - Include citation quality concerns when the evidence reviewer flagged them.
       - Keep the output structured and concise enough for a PDF report.
       - Do not use Markdown, bold markers, bullets, headings, or asterisks inside string values. Use plain text only.
@@ -428,6 +429,7 @@ agents:
       - Preserve supported content that does not need to change.
       - Use the doctor-supplied update to revise the report where appropriate.
       - Remove or shorten missing_information items only when the supplied doctor update directly addresses them.
+      - missing_information may contain only patient-specific clinical details a doctor can supply. Never put RAG context, citation text, citation mapping, source filenames, page numbers, or evidence-review instructions in missing_information.
       - Update relevant sections such as patient_snapshot, findings, clinical_findings, evidence_summary, clinician_actions, and missing_information when justified.
       - Do not invent facts, citations, lab values, diagnoses, medication facts, or guideline statements.
       - Keep the existing JSON shape for the final report.

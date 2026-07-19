@@ -71,6 +71,21 @@ def dedupe_list(values, *, seen=None):
     return unique_values
 
 
+def actionable_missing_information(values):
+    """Keep only patient-specific gaps that a clinician can actually fill."""
+    actionable = []
+    for item in as_list(values):
+        key = text_key(item)
+        is_internal_citation_context = (
+            key.startswith("rag context for citation")
+            or key.startswith("rag context citation")
+            or key.startswith("citation context for")
+        )
+        if not is_internal_citation_context:
+            actionable.append(item)
+    return actionable
+
+
 def display_report_type(value):
     """Return a professional display label for an internal report type code."""
     text = str(value or "").strip()
@@ -218,7 +233,10 @@ def normalize_final_report(report, patient_snapshot_defaults=None):
 
     seen = set()
     for field_name in list_fields_in_order:
-        report[field_name] = dedupe_list(report.get(field_name), seen=seen)
+        values = report.get(field_name)
+        if field_name == "missing_information":
+            values = actionable_missing_information(values)
+        report[field_name] = dedupe_list(values, seen=seen)
 
     citations = dedupe_list(report.get("citations"))
     source_citations = dedupe_list(report.get("source_citations"))

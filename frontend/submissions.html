@@ -243,21 +243,6 @@
           {% endif %}
 
           <div id="{{ submission.ai_panel_id }}" class="submission-panel ai-report" hidden>
-            {% if submission.final_report %}
-              <div class="report-edit-toolbar">
-                <button type="button" data-report-edit-toggle>Edit generated report</button>
-                <span data-report-edit-status role="status"></span>
-              </div>
-              <script type="application/json" data-editable-report>{{ submission.final_report|tojson }}</script>
-              <section class="report-editor" data-report-editor hidden>
-                <p>Edit one item per line in list fields. Saving updates the stored report and regenerates its PDF.</p>
-                <div data-report-editor-fields></div>
-                <div class="report-editor-actions">
-                  <button type="button" data-report-edit-save>Save report</button>
-                  <button type="button" data-report-edit-cancel>Cancel</button>
-                </div>
-              </section>
-            {% endif %}
             <div class="ai-report-content" data-ai-report-content>
               {{ submission.ai_html|safe }}
             </div>

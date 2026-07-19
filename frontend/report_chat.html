@@ -63,6 +63,39 @@
           {% endif %}
         </header>
 
+        <section
+          class="report-fill-panel"
+          data-report-fill-panel
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="report-fill-title-{{ submission.id }}"
+          hidden
+        >
+          <div class="report-fill-panel__header">
+            <div>
+              <h2 id="report-fill-title-{{ submission.id }}">Fill Missing Information</h2>
+              <p>Add the missing clinical details you want applied directly to this saved report.</p>
+            </div>
+            <button type="button" class="report-fill-close" data-report-fill-cancel aria-label="Close fill missing information">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
+              </svg>
+            </button>
+          </div>
+          <div class="report-fill-panel__body">
+            <div class="report-fill-panel__list">
+              <h3>Current Missing Information</h3>
+              <ul data-report-missing-list></ul>
+            </div>
+            <div class="report-fill-panel__hint">
+              <p>Enter the answer beside one missing item, then apply that field. Each save updates exactly one gap in the saved report.</p>
+            </div>
+          </div>
+          <div class="report-fill-panel__actions">
+            <button type="button" class="report-fill-secondary" data-report-fill-cancel>Cancel</button>
+          </div>
+        </section>
+
         <div class="report-chat-messages nv-niva-panel__messages" data-report-chat-messages aria-live="polite">
           <div class="report-chat-empty" data-report-chat-empty>
             <span class="report-chat-empty-mark" aria-hidden="true">N</span>
@@ -78,32 +111,6 @@
             <button type="button" data-report-chat-prompt="Which patient answers or documents caused this concern?">Which patient answers or documents caused this concern?</button>
             <button type="button" data-report-chat-prompt="What do the clinical guidelines recommend for this case?">What do the guidelines recommend?</button>
           </div>
-
-          <section class="report-fill-panel" data-report-fill-panel hidden>
-            <div class="report-fill-panel__header">
-              <div>
-                <h2>Fill Missing Information</h2>
-                <p>Add the missing clinical details you want applied directly to this saved report.</p>
-              </div>
-              <button type="button" class="report-fill-close" data-report-fill-cancel aria-label="Close fill missing information">
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                  <path d="M6 6l12 12M18 6 6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/>
-                </svg>
-              </button>
-            </div>
-            <div class="report-fill-panel__body">
-              <div class="report-fill-panel__list">
-                <h3>Current Missing Information</h3>
-                <ul data-report-missing-list></ul>
-              </div>
-              <div class="report-fill-panel__hint">
-                <p>Enter the answer beside one missing item, then apply that field. Each save updates exactly one gap in the saved report.</p>
-              </div>
-            </div>
-            <div class="report-fill-panel__actions">
-              <button type="button" class="report-fill-secondary" data-report-fill-cancel>Cancel</button>
-            </div>
-          </section>
 
           <form class="report-chat-form" data-report-chat-form>
             <label for="report-chat-question-{{ submission.id }}">Question</label>

@@ -51,6 +51,8 @@ dist/
 # Editors and OS
 .vscode/
 .idea/
+.agents/
+.codex/
 *.swp
 *.swo
 Thumbs.db

@@ -161,16 +161,24 @@ document.addEventListener("DOMContentLoaded", function () {
   function setFillMode(panel, isActive) {
     if (!panel) return;
     const fillPanel = fillPanelElement(panel);
-    const prompts = panel.querySelector(".report-chat-prompts");
-    const questionForm = panel.querySelector("[data-report-chat-form]");
+    const messages = messagesElement(panel);
+    const bottom = panel.querySelector(".report-chat-bottom");
     const toggle = fillToggleButton(panel);
     panel.dataset.reportFillMode = isActive ? "true" : "false";
     if (fillPanel) {
       fillPanel.hidden = !isActive;
-      if (isActive) renderMissingInformationPanel(panel);
+      if (isActive) {
+        renderMissingInformationPanel(panel);
+        window.requestAnimationFrame(function () {
+          const firstField = fillPanel.querySelector("textarea");
+          const fallbackButton = fillPanel.querySelector("button");
+          (firstField || fallbackButton)?.focus();
+        });
+      }
     }
-    if (prompts) prompts.hidden = isActive;
-    if (questionForm) questionForm.hidden = isActive;
+    if (messages) messages.hidden = isActive;
+    if (bottom) bottom.hidden = isActive;
+    syncPromptVisibility(panel);
     if (toggle) toggle.classList.toggle("is-active", isActive);
   }
 
@@ -237,6 +245,14 @@ document.addEventListener("DOMContentLoaded", function () {
   function clearEmptyState(panel) {
     const empty = panel.querySelector("[data-report-chat-empty]");
     if (empty) empty.remove();
+  }
+
+  function syncPromptVisibility(panel) {
+    const prompts = panel.querySelector(".report-chat-prompts");
+    const messages = messagesElement(panel);
+    if (!prompts || !messages) return;
+    const hasConversation = Boolean(messages.querySelector(".report-chat-message"));
+    prompts.hidden = panel.dataset.reportFillMode === "true" || hasConversation;
   }
 
   function emptyStateHtml() {
@@ -361,6 +377,7 @@ document.addEventListener("DOMContentLoaded", function () {
         ${isDoctor ? `${content}${avatar}` : `${avatar}${content}`}
       </article>
     `);
+    syncPromptVisibility(panel);
     if (shouldStick) {
       messages.scrollTop = messages.scrollHeight;
     }
@@ -495,12 +512,14 @@ document.addEventListener("DOMContentLoaded", function () {
     messages.innerHTML = "";
     if (!Array.isArray(history) || !history.length) {
       messages.innerHTML = emptyStateHtml();
+      syncPromptVisibility(panel);
       return;
     }
     history.forEach(function (item) {
       appendDoctorMessage(panel, item.question || "", item.created_at || "");
       appendAgentMessage(panel, item.answer || {}, item.created_at || "", item.answer_text || "");
     });
+    syncPromptVisibility(panel);
     scrollToLatest(panel, "auto");
   }
 
@@ -561,8 +580,9 @@ document.addEventListener("DOMContentLoaded", function () {
     const panel = toggleButton.closest("[data-report-chat-panel]");
     const textarea = panel ? panel.querySelector("textarea[name='question']") : null;
     if (!panel) return;
-    setFillMode(panel, panel.dataset.reportFillMode !== "true");
-    if (textarea) textarea.focus();
+    const shouldOpen = panel.dataset.reportFillMode !== "true";
+    setFillMode(panel, shouldOpen);
+    if (!shouldOpen && textarea) textarea.focus();
   });
 
   document.addEventListener("click", function (event) {
@@ -572,7 +592,19 @@ document.addEventListener("DOMContentLoaded", function () {
     const textarea = panel ? panel.querySelector("textarea[name='question']") : null;
     if (!panel) return;
     setFillMode(panel, false);
-    if (textarea) textarea.focus();
+    const toggle = fillToggleButton(panel);
+    if (toggle) toggle.focus();
+    else if (textarea) textarea.focus();
+  });
+
+  document.addEventListener("keydown", function (event) {
+    if (event.key !== "Escape") return;
+    const fillPanel = event.target.closest("[data-report-fill-panel]");
+    const panel = fillPanel ? fillPanel.closest("[data-report-chat-panel]") : null;
+    if (!panel || panel.dataset.reportFillMode !== "true") return;
+    event.preventDefault();
+    setFillMode(panel, false);
+    fillToggleButton(panel)?.focus();
   });
 
   document.addEventListener("click", async function (event) {
@@ -770,118 +802,6 @@ document.addEventListener("DOMContentLoaded", function () {
 })();
 
 (function () {
-  const scalarFields = [
-    ["report_title", "Report title"],
-    ["report_type", "Report type"],
-    ["confidence", "Confidence"],
-    ["executive_summary", "Executive summary"],
-    ["clinical_summary", "Clinical summary"]
-  ];
-  const listFields = [
-    ["urgent_safety_alerts", "Urgent safety alerts"],
-    ["medication_safety", "Medication safety"],
-    ["findings", "Findings"],
-    ["clinical_findings", "Clinical findings"],
-    ["evidence_summary", "Evidence summary"],
-    ["clinician_actions", "Clinician actions"],
-    ["missing_information", "Missing information"],
-    ["limitations", "Limitations"],
-    ["citations", "Citations"]
-  ];
-
-  function escapeHtml(value) {
-    return String(value ?? "").replace(/[&<>"']/g, char => ({
-      "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"
-    }[char]));
-  }
-
-  function readReport(card) {
-    try {
-      return JSON.parse(card.querySelector("[data-editable-report]")?.textContent || "{}");
-    } catch {
-      return {};
-    }
-  }
-
-  function renderEditor(card) {
-    const host = card.querySelector("[data-report-editor-fields]");
-    if (!host) return;
-    const report = readReport(card);
-    const fields = scalarFields.map(([name, label]) => `
-      <label class="report-editor-field"><span>${escapeHtml(label)}</span>
-        <textarea rows="${name.includes("summary") ? 4 : 2}" data-report-field="${name}">${escapeHtml(report[name] || "")}</textarea>
-      </label>`).join("");
-    const lists = listFields.map(([name, label]) => `
-      <label class="report-editor-field"><span>${escapeHtml(label)} <small>(one item per line)</small></span>
-        <textarea rows="4" data-report-list-field="${name}">${escapeHtml((report[name] || []).join("\n"))}</textarea>
-      </label>`).join("");
-    host.innerHTML = fields + lists;
-  }
-
-  function setEditorOpen(card, open) {
-    const editor = card.querySelector("[data-report-editor]");
-    if (!editor) return;
-    if (open) renderEditor(card);
-    editor.hidden = !open;
-    card.classList.toggle("is-report-editing", open);
-    card.querySelector("[data-report-edit-toggle]")?.setAttribute("aria-expanded", String(open));
-  }
-
-  document.addEventListener("click", event => {
-    const toggle = event.target.closest("[data-report-edit-toggle]");
-    if (!toggle) return;
-    const card = toggle.closest(".submission");
-    if (card) setEditorOpen(card, card.querySelector("[data-report-editor]")?.hidden !== false);
-  });
-
-  document.addEventListener("click", event => {
-    const cancel = event.target.closest("[data-report-edit-cancel]");
-    if (!cancel) return;
-    const card = cancel.closest(".submission");
-    if (card) setEditorOpen(card, false);
-  });
-
-  document.addEventListener("click", async event => {
-    const save = event.target.closest("[data-report-edit-save]");
-    if (!save) return;
-    const card = save.closest(".submission");
-    if (!card) return;
-    const status = card.querySelector("[data-report-edit-status]");
-    const report = readReport(card);
-    card.querySelectorAll("[data-report-field]").forEach(input => {
-      report[input.dataset.reportField] = input.value.trim();
-    });
-    card.querySelectorAll("[data-report-list-field]").forEach(input => {
-      report[input.dataset.reportListField] = input.value.split(/\r?\n/).map(item => item.trim()).filter(Boolean);
-    });
-    save.disabled = true;
-    if (status) status.textContent = "Saving report...";
-    try {
-      const response = await fetch("report-chat/report-edit", {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ submission_id: card.dataset.submissionId, report })
-      });
-      const payload = await response.json().catch(() => ({}));
-      if (!response.ok) throw new Error(payload.error || `Request failed (${response.status})`);
-      card.querySelector("[data-editable-report]").textContent = JSON.stringify(payload.report || report);
-      const reportContent = card.querySelector("[data-ai-report-content]");
-      if (reportContent && payload.ai_html) reportContent.innerHTML = payload.ai_html;
-      const revision = payload.patch_entry?.created_at || new Date().toISOString();
-      card.dataset.reportRevision = revision;
-      const time = card.querySelector("[data-report-time]");
-      if (time) time.setAttribute("datetime", revision);
-      setEditorOpen(card, false);
-      if (status) status.textContent = "Report saved.";
-      updateReportTimes();
-    } catch (error) {
-      if (status) status.textContent = error.message || "Could not save report.";
-    } finally {
-      save.disabled = false;
-    }
-  });
-
   function parsedDate(value) {
     if (!value) return null;
     const normalized = /(?:Z|[+-]\d\d:\d\d)$/.test(value) ? value : `${value}Z`;
@@ -931,7 +851,7 @@ document.addEventListener("DOMContentLoaded", function () {
       const changed = remote.length !== local.length || remote.some((item, index) => {
         return !local[index] || item.id !== local[index].id || String(item.revision || "") !== local[index].revision;
       });
-      if (changed && !document.querySelector(".submission.is-report-editing")) window.location.reload();
+      if (changed) window.location.reload();
     } catch {
       // SSE remains the primary notification channel; the next poll retries quietly.
     }
